@@ -157,6 +157,38 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
                       if model.get("pricing_missing") and model.get("available") is not False]
     warnings += missing_prices
     family = resolve_dev_family(models, role, dev_family, dev_model)
+
+    def exclusions():
+        details = []
+        for model in models:
+            reasons = []
+            if model["family"] == "unknown":
+                reasons.append("famille inconnue, définir family dans models.yaml")
+            if model.get("cost_index") is None:
+                reasons.append("pricing_missing, ajouter son prix dans models.yaml")
+            if not model.get("cli"):
+                reasons.append("CLI non pris en charge")
+            if model.get("retired"):
+                reasons.append("modèle retiré")
+            if model.get("available") is False:
+                reasons.append("indisponible")
+            if not entry_selectable(model["runtime"]):
+                reasons.append("politique ou capacités interdites")
+            if not allow_preview and (model.get("release_status") != "GA"
+                                      or model.get("preview") or model["runtime"].get("preview")):
+                reasons.append("aperçu interdit")
+            if max_level and rank[model["tier"]] > rank[max_level]:
+                reasons.append("hors plafond du rôle")
+            if min_level and rank[model["tier"]] < rank[min_level]:
+                reasons.append("sous le niveau minimal du rôle")
+            if cap is not None and model.get("cost_index") is not None and decimal_number(model["cost_index"]) > cap:
+                reasons.append("hors budget")
+            if family and model["family"] == family:
+                reasons.append("même famille que le dev")
+            if reasons:
+                details.append(f"{model['id']}: " + ", ".join(reasons))
+        return "Exclusions : " + "; ".join(details) + "."
+
     # Bornes absolues du rôle : un successeur doit passer ces filtres avant
     # de pouvoir dépasser la simple préférence de niveau « wanted ».
     eligible = [model for model in models
@@ -168,16 +200,16 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
         if not eligible:
             raise SelectionError(
                 f"Aucun modèle CLI admissible d'une famille différente de {family}. "
-                "La contrainte de famille ne peut pas être relâchée. " + " ".join(warnings), 3)
+                "La contrainte de famille ne peut pas être relâchée. " + exclusions() + " " + " ".join(warnings), 3)
     if not eligible:
         raise SelectionError("Aucun modèle CLI admissible dans la disponibilité fournie et le statut permis. "
-                             + " ".join(warnings))
+                             + exclusions() + " " + " ".join(warnings))
     if cap is not None:
         eligible = [model for model in eligible if decimal_number(model["cost_index"]) <= cap]
         if not eligible:
             raise SelectionError(
                 f"Aucun modèle admissible ne respecte le plafond de {cap} crédits par tâche de référence. "
-                "Le budget ne peut pas être dépassé.", 2)
+                "Le budget ne peut pas être dépassé. " + exclusions(), 2)
     within_level = [model for model in eligible if rank[model["tier"]] <= rank[wanted]]
     if within_level:
         chosen_rank = max(rank[model["tier"]] for model in within_level)

@@ -80,24 +80,34 @@ def probable_id(name: str) -> str:
     return re.sub(r"[^a-z0-9.]+", "-", name).strip("-")
 
 
+def family_from_id(identifier: str) -> str:
+    prefixes = {"kimi-": "moonshot_ai", "claude-": "anthropic", "gpt-": "openai",
+                "gemini-": "google", "grok-": "xai", "mai-": "microsoft"}
+    return next((family for prefix, family in prefixes.items() if identifier.casefold().startswith(prefix)), "unknown")
+
+
 def local_registry_path(path: Path) -> Path:
     return path.with_suffix(".local.json")
 
 
-def apply_registry_prices(models: list[dict], declared: list[dict]) -> None:
-    """Un prix explicite du registre de base prime sur le registre local."""
+def apply_registry_overrides(models: list[dict], declared: list[dict]) -> None:
+    """Les réglages de base priment; le catalogue conserve ses constats d'accès."""
+    catalog_fields = {"id", "aliases", "id_verified", "id_source", "cli", "retired", "retired_on",
+                      "available", "available_source", "runtime"}
     for model in models:
         matches = matching_entries(model, declared)
         if len(matches) != 1:
             continue
         source = matches[0]
-        if source.get("cost_index") is None or source.get("prix_suppose"):
-            continue
-        model["cost_index"] = source["cost_index"]
-        if "pricing" in source:
-            model["pricing"] = copy.deepcopy(source["pricing"])
-        model.update(pricing_missing=False, prix_suppose=False)
-        model.pop("pricing_predecessor", None)
+        fields = source.keys() - catalog_fields
+        if source.get("prix_suppose"):
+            fields -= {"cost_index", "pricing", "pricing_missing", "prix_suppose", "pricing_predecessor"}
+        model.update({field: copy.deepcopy(source[field]) for field in fields})
+        if not source.get("prix_suppose") and ("cost_index" in source or "pricing" in source):
+            if "cost_index" not in source:
+                model["cost_index"] = None  # Recalculer à partir du tarif explicite.
+            model["prix_suppose"] = False
+            model.pop("pricing_predecessor", None)
 
 
 def resolve_model_prices(models: list[dict]) -> None:
@@ -144,19 +154,8 @@ def pricing_notice(model: dict) -> str:
     return f"pricing_missing : {model['id']} exclu; ajouter son prix dans models.yaml."
 
 
-def load_registry(path: Path, *, use_local: bool = True) -> dict:
-    """Préfère le registre local; le JSON de secours doit correspondre au YAML."""
-    local = local_registry_path(path)
-    if use_local and not path.name.endswith(".local.json") and local.is_file():
-        data = load_registry(local, use_local=False)
-        if path.is_file():
-            base = load_registry(path, use_local=False)
-            for model in base["models"]:
-                if not any(matching_entries(local_model, [model]) for local_model in data["models"]):
-                    data["models"].append(copy.deepcopy(model))
-            apply_registry_prices(data["models"], base["models"])
-            resolve_model_prices(data["models"])
-        return data
+def read_registry(path: Path) -> dict:
+    """Lit les champs déclarés sans les résoudre avant la fusion locale."""
     if path.suffix.lower() == ".json":
         data = json.loads(path.read_text(encoding="utf-8"))
     else:
@@ -184,10 +183,33 @@ def load_registry(path: Path, *, use_local: bool = True) -> dict:
         if model["id"] in ids:
             raise ValueError(f"Identifiant en double : {model['id']}.")
         ids.add(model["id"])
+    return data
+
+
+def load_registry(path: Path, *, use_local: bool = True) -> dict:
+    """Fusionne les réglages de base et le catalogue local, puis valide le résultat."""
+    local = local_registry_path(path)
+    if use_local and not path.name.endswith(".local.json") and local.is_file():
+        data = read_registry(local)
+        if path.is_file():
+            base = read_registry(path)
+            apply_registry_overrides(data["models"], base["models"])
+            for model in base["models"]:
+                if not any(matching_entries(local_model, [model]) for local_model in data["models"]):
+                    data["models"].append(copy.deepcopy(model))
+    else:
+        data = read_registry(path)
+    for model in data["models"]:
+        model.setdefault("display_name", model["id"])
+        if model.get("family") in (None, "unknown"):
+            model["family"] = family_from_id(model["id"])
+        if "tier_override" in model:
+            if model["tier_override"] not in LEVELS:
+                raise ValueError(f"tier_override invalide pour {model['id']}.")
+            model.update(tier=model["tier_override"], tier_source="manual", tier_provisoire=False)
+            model.pop("tier_note", None)
         if model.get("tier") not in LEVELS:
             raise ValueError(f"Niveau invalide pour {model['id']}.")
-        if "tier_override" in model and model["tier_override"] not in LEVELS:
-            raise ValueError(f"tier_override invalide pour {model['id']}.")
         if not isinstance(model.get("family"), str) or not model["family"]:
             raise ValueError(f"Famille manquante pour {model['id']}.")
         entry_selectable(model.get("runtime"))

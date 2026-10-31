@@ -144,7 +144,8 @@ def heuristic_classify(*, story: str = "", story_type: str | None = None,
                     number + r"insertions?\b(?:\(\+\))?",
                     number + r"(?:deletions?|suppressions?)\b(?:\(-\))?")
         try:
-            matches = [re.search(pattern, diff_stats, re.IGNORECASE) for pattern in patterns]
+            all_matches = [list(re.finditer(pattern, diff_stats, re.IGNORECASE)) for pattern in patterns]
+            matches = [items[0] if items else None for items in all_matches]
             if not any(matches):
                 raise ValueError("Aucune statistique reconnue.")
             counts = [int(match[1]) if match else 0 for match in matches]
@@ -162,7 +163,7 @@ def heuristic_classify(*, story: str = "", story_type: str | None = None,
             remainder = re.sub(r"(?m)^.*\|.*$", "", diff_stats)
             for pattern in patterns:
                 remainder = re.sub(pattern, "", remainder, flags=re.IGNORECASE)
-            if matches[0] is None or remainder.strip(" \t\r\n,;"):
+            if matches[0] is None or any(len(items) > 1 for items in all_matches) or remainder.strip(" \t\r\n,;"):
                 warnings.append("Statistiques de diff partiellement lues; seules les valeurs reconnues sont utilisées.")
             changed_files = max((count for count in (files, diff_files) if count is not None), default=None)
             if files is not None and matches[0] and files != diff_files:

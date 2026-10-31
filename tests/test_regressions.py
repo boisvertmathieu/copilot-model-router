@@ -11,6 +11,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import yaml
 
@@ -85,6 +86,37 @@ class QaRegressionTests(unittest.TestCase):
                                      {"shell", "write", "read", "url", "memory"})
                     for flag in ("--no-ask-user", "--disable-builtin-mcps", "--no-custom-instructions", "-s"):
                         self.assertIn(flag, argv)
+
+    def test_mcp_classifier_and_judge_disable_user_configured_servers(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"COPILOT_HOME": directory}):
+            cli = fake_inference(directory)
+            config = Path(directory) / "mcp-config.json"
+            config.write_text(json.dumps({"mcpServers": {
+                "example-server": {"command": "unused"}, "Server With Spaces": {"url": "unused"},
+            }}), encoding="utf-8")
+            for judge in (False, True):
+                with self.subTest(judge=judge):
+                    if judge:
+                        CopilotJudge("judge", cli=cli).judge({"inputs": {"story": "x"}}, {})
+                    else:
+                        CopilotCliClient("classifier", cli=cli).classify("x")
+                    argv = json.loads((Path(directory) / "argv.json").read_text())
+                    self.assertEqual({arg for arg in argv if arg.startswith("--disable-mcp-server=")},
+                                     {"--disable-mcp-server=example-server", "--disable-mcp-server=Server With Spaces"})
+                    self.assertIn("--disable-builtin-mcps", argv)
+                    self.assertIn("shell,write,read,url,memory", argv)
+
+    def test_mcp_missing_or_invalid_user_config_is_ignored(self):
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"COPILOT_HOME": directory}):
+            cli = fake_inference(directory)
+            config = Path(directory) / "mcp-config.json"
+            for content in (None, "invalid json", "[]", '{"mcpServers": []}', '{"mcpServers": null}'):
+                with self.subTest(content=content):
+                    if content is not None:
+                        config.write_text(content, encoding="utf-8")
+                    CopilotCliClient("classifier", cli=cli).classify("x")
+                    argv = json.loads((Path(directory) / "argv.json").read_text())
+                    self.assertFalse(any(arg.startswith("--disable-mcp-server=") for arg in argv))
 
     def test_n3_sync_preserves_tracked_files_and_router_prefers_ignored_overlay(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -216,6 +248,87 @@ class QaRegressionTests(unittest.TestCase):
                             os.killpg(json.loads(pids.read_text())[0], signal.SIGKILL)
                         except ProcessLookupError:
                             pass
+
+    def test_n8_kimi_z9_exact_sync_repro_with_and_without_explicit_family(self):
+        for explicit_family in (False, True):
+            with self.subTest(explicit_family=explicit_family), tempfile.TemporaryDirectory() as directory:
+                checkout = isolated_checkout(directory)
+                catalog = checkout / "copilot-models.local.json"
+                catalog.write_text('["kimi-z9", "claude-haiku-5.5"]', encoding="utf-8")
+                synced = run_script(checkout, "scripts/sync_registry.py", "--upstream-dir", str(ROOT / "upstream"),
+                                    "--from-cli-models", str(catalog))
+                self.assertEqual(synced.returncode, 0, synced.stdout + synced.stderr)
+                registry = checkout / "models.yaml"
+                declared = yaml.safe_load(registry.read_text(encoding="utf-8"))
+                entry = {"id": "kimi-z9", "cost_index": 5}
+                if explicit_family:
+                    entry["family"] = "moonshot_ai"
+                declared["models"].append(entry)
+                registry.write_text(yaml.safe_dump(declared), encoding="utf-8")
+                routed = run_script(checkout, "scripts/route.py", "--role", "doc", "--story", "x",
+                                    "--available", "kimi-z9", "--json")
+                self.assertEqual(routed.returncode, 0, routed.stdout + routed.stderr)
+                decision = json.loads(routed.stdout)
+                self.assertEqual((decision["model"], decision["family"], decision["cost_index"]),
+                                 ("kimi-z9", "moonshot_ai", 5))
+                self.assertFalse(decision["prix_suppose"])
+
+    def test_n8_explicit_yaml_metadata_overrides_local_overlay(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = Path(directory) / "models.yaml"
+            overlay = {"models": [model("kimi-z9", "unknown", "premium", 99,
+                                        pricing={"input": 9, "cached_input": 9, "output": 9}, notes="local")]}
+            registry.with_suffix(".local.json").write_text(json.dumps(overlay), encoding="utf-8")
+            explicit = {"id": "kimi-z9", "display_name": "Kimi Z9", "family": "custom-provider",
+                        "tier": "standard", "tier_override": "standard",
+                        "pricing": {"input": 0.1, "cached_input": 0.1, "output": 1}, "notes": "manual"}
+            registry.write_text(yaml.safe_dump({"models": [explicit]}), encoding="utf-8")
+            loaded = load_registry(registry)
+            for field, value in explicit.items():
+                self.assertEqual(loaded["models"][0][field], value)
+            decision = route(loaded, role="doc", available="kimi-z9")
+            self.assertEqual((decision["family"], decision["tier"], decision["cost_index"]),
+                             ("custom-provider", "standard", 4))
+
+    def test_n8_no_admissible_model_lists_each_exclusion_reason(self):
+        entries = [model("mystery-z9", "unknown", "economy", 1),
+                   model("unpriced", "openai", "economy", None),
+                   model("too-capable", "openai", "premium", 1),
+                   model("expensive", "openai", "economy", 10),
+                   model("unavailable", "openai", "economy", 1, available=False),
+                   model("preview", "openai", "economy", 1, preview=True),
+                   model("disabled", "openai", "economy", 1, runtime={"policy": {"state": "disabled"}})]
+        with tempfile.TemporaryDirectory() as directory:
+            registry = Path(directory) / "models.json"
+            registry.write_text(json.dumps({"models": entries}), encoding="utf-8")
+            result = run_script(ROOT, "scripts/route.py", "--registry", str(registry), "--role", "doc", "--max-cost", "5")
+            self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+            error = json.loads(result.stdout)["error"]
+            for reason in ("mystery-z9: famille inconnue, définir family dans models.yaml",
+                           "unpriced: pricing_missing", "too-capable: hors plafond du rôle",
+                           "expensive: hors budget", "unavailable: indisponible", "preview: aperçu interdit",
+                           "disabled: politique ou capacités interdites"):
+                self.assertIn(reason, error)
+            registry.write_text(json.dumps({"models": [entries[0]]}), encoding="utf-8")
+            result = run_script(ROOT, "scripts/route.py", "--registry", str(registry), "--role", "doc")
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("mystery-z9: famille inconnue, définir family dans models.yaml", json.loads(result.stdout)["error"])
+            registry.write_text(json.dumps({"models": [model("same-provider", "openai", "premium", 1)]}),
+                                encoding="utf-8")
+            result = run_script(ROOT, "scripts/route.py", "--registry", str(registry), "--role", "reviewer",
+                                "--dev-model", "same-provider")
+            self.assertEqual(result.returncode, 3, result.stdout + result.stderr)
+            self.assertIn("same-provider: même famille que le dev", json.loads(result.stdout)["error"])
+
+    def test_n9_duplicate_or_ignored_diff_values_warn_on_stderr(self):
+        for suffix in (", 5 files", ", 12 files", ", 10 insertions(+)", ", 2 deletions(-)", ", 5 unknown"):
+            with self.subTest(suffix=suffix):
+                result = run_script(ROOT, "scripts/route.py", "--role", "dev", "--diff-stats",
+                                    "12 files changed, 340 insertions(+), 80 deletions(-)" + suffix)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                signals = json.loads(result.stdout)["signals"]
+                self.assertEqual((signals["files"], signals["insertions"], signals["deletions"]), (12, 340, 80))
+                self.assertIn("partiellement lues", result.stderr)
 
 
 class ProductDecisionRegressionTests(unittest.TestCase):

@@ -77,6 +77,10 @@ an independent model is missing; 4 means live catalog discovery failed; 5 means 
 refresh the catalog or report the blocker, then call again. Do not relax budget/family bounds.
 ```
 
+**Known limit:** Classifier and judge calls disable built-in MCP servers and server names from
+`$COPILOT_HOME/mcp-config.json` (default `~/.copilot/mcp-config.json`). Plugin or workspace MCP
+servers absent from that file may still load; deny-tool rules still apply to shell/write/read/url.
+
 ## Complete call and launch example
 
 From the checkout, use a real catalog and an existing Herdr pane. This example uses pane 2.
@@ -109,6 +113,8 @@ will be rejected. [Selection details](router.md) explain budgets, tiers and prov
 A model without a known price inherits its direct predecessor's price within the same lineage.
 The decision includes `prix_suppose: true`, a reason and a stderr warning. Without a known
 predecessor price it is excluded with `pricing_missing`; add its price in `models.yaml`.
-An explicit price in `models.yaml` takes priority over the local registry and inherited prices.
+Explicit metadata in `models.yaml`, including family, price and `tier_override`, takes priority
+over the local registry. Catalog availability still applies. Known ID prefixes can supply a missing
+family; otherwise, set `family` explicitly. Failed selection lists each model's exclusion reasons.
 Role bounds remain absolute: doc cannot exceed standard, even for a cheaper successor. A target
 tier is a preference: test may use an equally cheap premium successor in the same lineage.

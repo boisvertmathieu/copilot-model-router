@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import os
 import signal
 import subprocess
+from pathlib import Path
 
 # https://docs.github.com/en/copilot/reference/cli-command-reference
 # --excluded-tools retire tous les outils intégrés documentés; --deny-tool couvre
@@ -22,8 +24,20 @@ COPILOT_NO_TOOLS_ARGS = (
 )
 
 
+def user_mcp_disable_args() -> list[str]:
+    home = Path(os.environ.get("COPILOT_HOME") or Path.home() / ".copilot")
+    try:
+        config = json.loads((home / "mcp-config.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    servers = config.get("mcpServers") if isinstance(config, dict) else None
+    # https://docs.github.com/en/copilot/reference/cli-command-reference
+    # --disable-mcp-server=SERVER-NAME est répétable; aucun « disable all » documenté.
+    return [f"--disable-mcp-server={name}" for name in servers] if isinstance(servers, dict) else []
+
+
 def run_copilot(model: str, prompt: str, *, cli: str = "copilot", timeout: float = 30):
-    command = [cli, "--model", model, "-p", prompt, *COPILOT_NO_TOOLS_ARGS]
+    command = [cli, "--model", model, "-p", prompt, *COPILOT_NO_TOOLS_ARGS, *user_mcp_disable_args()]
     with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE, text=True, start_new_session=True) as process:
         try:

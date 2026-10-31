@@ -17,8 +17,9 @@ from urllib.request import Request, urlopen
 from registry_lib import (
     ROOT, TABLE_FILES, TABLE_BASE, REFERENCE_TASK, ROLE_LEVELS,
     CAPABILITY_POLICY, assign_model_tiers, catalog_entries, clean_name, decimal_number, dump_json,
-    entry_selectable, load_registry, matching_entries, model_lineage, name_key, probable_id,
-    reference_cost, write_atomic, apply_registry_prices, local_registry_path, pricing_notice, resolve_model_prices,
+    entry_selectable, family_from_id, load_registry, matching_entries, model_lineage, name_key, probable_id,
+    reference_cost, write_atomic, apply_registry_overrides, local_registry_path, pricing_notice, read_registry,
+    resolve_model_prices,
 )
 
 
@@ -194,7 +195,7 @@ def build_registry(tables: dict, previous: dict | None, date: str,
             family = entry.get("family") or entry.get("provider")
             if not isinstance(family, str) or not family:
                 family = next((family for family in {m["family"] for m in models}
-                               if model_lineage(family, name) or model_lineage(family, entry["id"])), "unknown")
+                               if model_lineage(family, name) or model_lineage(family, entry["id"])), family_from_id(entry["id"]))
             lineage = model_lineage(family, name) or model_lineage(family, entry["id"])
             peers = [model for model in models if model["family"] == family and lineage
                      and (model_lineage(family, model["display_name"]) or (None,))[0] == lineage[0]]
@@ -299,8 +300,11 @@ def main(argv=None) -> int:
         registry, report = build_registry(tables, previous, now.date().isoformat(), cli_payload,
                                            mode="local" if args.upstream_dir else "network")
         if args.registry.exists():
-            base = load_registry(args.registry, use_local=False)
-            apply_registry_prices(registry["models"], base["models"])
+            base = read_registry(args.registry)
+            apply_registry_overrides(registry["models"], base["models"])
+            for model in registry["models"]:
+                if "tier_override" in model:
+                    model["tier"] = model["tier_override"]
             resolve_model_prices(registry["models"])
         report["pricing_missing"] = [model["id"] for model in registry["models"]
                                       if model.get("available") is not False and model["pricing_missing"]]
