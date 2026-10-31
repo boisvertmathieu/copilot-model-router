@@ -1,0 +1,1359 @@
+# Récits synthétiques francophone; les attentes portent sur des propriétés, jamais sur un ID choisi.
+schema_version: 1
+cases:
+- id: dev-typo-bouton
+  inputs:
+    role: dev
+    story: PORTAIL-101 — Corriger « Confimer » sur le bouton de confirmation; garder le français francophone.
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: dev-renommage-variable
+  inputs:
+    role: dev
+    story: FACT-102 — Renommage de la variable montantBrut dans le calculateur; aucun changement fonctionnel.
+    files: 2
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: dev-alignement-css
+  inputs:
+    role: dev
+    story: UI-103 — Aligner le prix et le signe $ dans la carte produit sur mobile.
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: dev-libelle-courriel
+  inputs:
+    role: dev
+    story: CRM-104 — Remplacer « email » par « courriel » dans le formulaire de contact.
+    files: 2
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: dev-texte-vide
+  inputs:
+    role: dev
+    story: AIDE-105 — Afficher « Aucun résultat » quand la liste de favoris est vide.
+    files: 0
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: dev-filtre-commandes
+  inputs:
+    role: dev
+    story: VENTE-201 — Comme préposée, je veux filtrer les commandes par statut et conserver le choix au rechargement.
+    story_type: feature
+    diff_stats: 4 files changed, 120 insertions(+), 20 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: dev-export-csv
+  inputs:
+    role: dev
+    story: GEST-202 — Ajouter un export CSV des inscriptions avec les accents et le séparateur configurable.
+    story_type: feature
+    diff_stats: 3 files changed, 88 insertions(+), 12 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: dev-tri-adresses
+  inputs:
+    role: dev
+    story: CITOYEN-203 — Trier les adresses par code postal et afficher un état de chargement.
+    story_type: feature
+    diff_stats: 5 files changed, 160 insertions(+), 40 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: dev-correction-date
+  inputs:
+    role: dev
+    story: HORAIRE-204 — Corriger le passage à l’heure normale dans le calendrier des réservations.
+    story_type: feature
+    diff_stats: 4 files changed, 99 insertions(+), 25 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: dev-notification
+  inputs:
+    role: dev
+    story: RH-205 — Aviser la gestionnaire quand une demande de congé attend sa réponse depuis trois jours.
+    story_type: feature
+    diff_stats: 3 files changed, 70 insertions(+), 18 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: dev-refactor-paiement
+  inputs:
+    role: dev
+    story: 'CAISSE-301 — Refactor paiement : extraire les adaptateurs pour simplifier les essais en bac à sable.'
+    story_type: refactor
+    files: 14
+    diff_stats: 14 files changed, 690 insertions(+), 140 deletions(-)
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: dev-architecture-recherche
+  inputs:
+    role: dev
+    story: 'RECH-302 — Architecture du moteur de recherche : séparer indexation, requêtes et classement.'
+    story_type: refactor
+    files: 12
+    diff_stats: 12 files changed, 350 insertions(+), 180 deletions(-)
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: dev-modules-inventaire
+  inputs:
+    role: dev
+    story: STOCK-303 — Découper le traitement multi-modules des mouvements d’inventaire.
+    story_type: refactor
+    files: 10
+    diff_stats: 10 files changed, 240 insertions(+), 90 deletions(-)
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: dev-spike-cartographie
+  inputs:
+    role: dev
+    story: GEO-304 — Comparer deux moteurs de tuiles et produire un prototype pour les cartes hors connexion.
+    story_type: spike
+    files: 3
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: dev-consolidation-services
+  inputs:
+    role: dev
+    story: DOSSIER-305 — Consolider les services de recherche en conservant les contrats des consommateurs.
+    story_type: refactor
+    files: 18
+    diff_stats: 18 files changed, 800 insertions(+), 230 deletions(-)
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: dev-cve
+  inputs:
+    role: dev
+    story: SEC-401 — Corriger CVE-2026-12345 dans le parseur des pièces jointes et vérifier le scénario d’exploitation.
+    files: 2
+    story_type: feature
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: dev-sql
+  inputs:
+    role: dev
+    story: SEC-402 — Bloquer une injection SQL dans le champ de recherche des comptes.
+    files: 1
+    story_type: feature
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: dev-donnees
+  inputs:
+    role: dev
+    story: CAISSE-403 — Le paiement en production peut causer une perte de données lors d’une reprise.
+    files: 4
+    story_type: feature
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: dev-auth-bug
+  inputs:
+    role: dev
+    story: 'IDENT-404 — Réparer l’authentification : un bug permet de réutiliser un jeton révoqué.'
+    files: 3
+    story_type: bug
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: dev-migration-large
+  inputs:
+    role: dev
+    story: DATA-405 — Déployer la migration des identifiants de dossiers sur les services concernés.
+    files: 20
+    story_type: feature
+    budget_profile: frontier
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    max_cost: 250
+    cost_range:
+    - 1
+    - 250
+- id: test-accent
+  inputs:
+    role: test
+    story: QA-101 — Ajouter le cas unitaire pour le nom « Maël » dans le formateur de salutations.
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: test-message
+  inputs:
+    role: test
+    story: QA-102 — Ajuster l’assertion du libellé « Courriel requis » après la correction de texte.
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: test-auth-doc
+  inputs:
+    role: test
+    story: QA-103 — Vérifier la typo de la doc auth dans un exemple statique.
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: test-panier
+  inputs:
+    role: test
+    story: QA-201 — Couvrir les paniers vides, les quantités négatives et les arrondis des taxes.
+    diff_stats: 4 files changed, 130 insertions(+), 15 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: test-fuseaux
+  inputs:
+    role: test
+    story: QA-202 — Vérifier les plages de disponibilité entre deux fuseaux horaires.
+    diff_stats: 4 files changed, 130 insertions(+), 15 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: test-paiement-bac
+  inputs:
+    role: test
+    story: QA-203 — Ajouter les scénarios de paiement du bac à sable avec les réponses factices.
+    diff_stats: 4 files changed, 130 insertions(+), 15 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: test-contrat-api
+  inputs:
+    role: test
+    story: QA-204 — Tester les champs facultatifs du contrat API des rendez-vous.
+    diff_stats: 4 files changed, 130 insertions(+), 15 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: test-refactor
+  inputs:
+    role: test
+    story: QA-301 — Refactor des fabriques de données de test partagées.
+    files: 12
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: test-charge
+  inputs:
+    role: test
+    story: QA-302 — Étendre la matrice de charge et les scénarios de résilience du moteur de recherche.
+    diff_stats: 9 files changed, 470 insertions(+), 30 deletions(-)
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: test-spike
+  inputs:
+    role: test
+    story: QA-303 — Évaluer un générateur de jeux de données reproductibles pour les contrats.
+    story_type: spike
+    files: 2
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: test-seuil-fichiers
+  inputs:
+    role: test
+    story: QA-304 — Ajouter les scénarios de régression dans dix composants de réservation.
+    files: 10
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: test-vulnerabilite
+  inputs:
+    role: test
+    story: QA-401 — Reproduire la vulnérabilité du traitement des archives et valider le correctif.
+    files: 4
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: test-rollback
+  inputs:
+    role: test
+    story: QA-402 — Valider le rollback de la migration des historiques après interruption.
+    files: 4
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: test-concurrence
+  inputs:
+    role: test
+    story: QA-403 — Reproduire la fuite de données liée à la concurrence entre deux comptes.
+    files: 4
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: doc-installation
+  inputs:
+    role: doc
+    story: DOC-101 — Corriger une typo dans les commandes d’installation pour macOS.
+    story_type: doc
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: doc-securite
+  inputs:
+    role: doc
+    story: DOC-102 — Harmoniser les titres de la documentation sécurité; aucun code modifié.
+    story_type: doc
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: doc-paiement
+  inputs:
+    role: doc
+    story: DOC-103 — Ajouter une capture d’écran à la doc paiement du bac à sable.
+    story_type: doc
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: doc-migration
+  inputs:
+    role: doc
+    story: DOC-104 — Renommage de la page de migration dans la table des matières.
+    story_type: doc
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: doc-concurrence
+  inputs:
+    role: doc
+    story: DOC-105 — Corriger les accents dans le glossaire de concurrence.
+    story_type: doc
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: doc-auth
+  inputs:
+    role: doc
+    story: DOC-106 — Corriger le lien vers la doc d’authentification dans le guide d’accueil.
+    story_type: doc
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: doc-region
+  inputs:
+    role: doc
+    story: DOC-107 — Remplacer « week-end » par « fin de semaine » dans le guide du service à la clientèle.
+    story_type: doc
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: doc-api
+  inputs:
+    role: doc
+    story: DOC-201 — Mettre à jour les exemples de pagination dans quatre pages de référence.
+    story_type: doc
+    diff_stats: 4 files changed, 150 insertions(+), 25 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: doc-exploitation
+  inputs:
+    role: doc
+    story: DOC-202 — Décrire la procédure de redémarrage des index et les états attendus.
+    story_type: doc
+    diff_stats: 4 files changed, 150 insertions(+), 25 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: doc-accessibilite
+  inputs:
+    role: doc
+    story: DOC-203 — Ajouter les exemples clavier et lecteur d’écran au guide des formulaires.
+    story_type: doc
+    diff_stats: 4 files changed, 150 insertions(+), 25 deletions(-)
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: doc-architecture
+  inputs:
+    role: doc
+    story: DOC-301 — Expliquer l’architecture et les frontières des services de recherche.
+    story_type: doc
+    files: 12
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: doc-gros-guide
+  inputs:
+    role: doc
+    story: DOC-302 — Réorganiser les guides de déploiement dans douze fichiers.
+    story_type: doc
+    files: 12
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: doc-cve
+  inputs:
+    role: doc
+    story: DOC-401 — Rédiger l’avis relatif à CVE-2026-98765 et le guide de mise à niveau.
+    story_type: doc
+    files: 2
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: doc-incident
+  inputs:
+    role: doc
+    story: DOC-402 — Consigner l’incident de paiement en production et sa procédure de reprise.
+    story_type: doc
+    files: 2
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: e2e-libelle
+  inputs:
+    role: e2e-validator
+    story: E2E-101 — Confirmer le libellé « Continuer » dans la capture mobile.
+    files: 1
+    dev_model: claude-sonnet-5.5
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+    family_not: anthropic
+- id: e2e-doc
+  inputs:
+    role: e2e-validator
+    story: E2E-102 — Vérifier la navigation de la doc après correction du lien.
+    files: 1
+    dev_model: claude-sonnet-5.5
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+    family_not: anthropic
+- id: e2e-couleur
+  inputs:
+    role: e2e-validator
+    story: E2E-103 — Valider la couleur de survol du bouton dans la page d’accueil.
+    files: 1
+    dev_model: claude-sonnet-5.5
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+    family_not: anthropic
+- id: e2e-inscription
+  inputs:
+    role: e2e-validator
+    story: E2E-201 — Parcourir l’inscription, la confirmation par courriel et la première connexion.
+    files: 4
+    dev_model: claude-sonnet-5.5
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+    family_not: anthropic
+- id: e2e-rdv
+  inputs:
+    role: e2e-validator
+    story: E2E-202 — Réserver, déplacer puis annuler un rendez-vous depuis le portail.
+    files: 4
+    dev_model: modele-dev-externe
+    dev_family: openai
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+    family_not: openai
+- id: e2e-paiement
+  inputs:
+    role: e2e-validator
+    story: E2E-203 — Valider le paiement simulé dans le bac à sable et le reçu français.
+    files: 4
+    dev_model: claude-sonnet-5.5
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+    family_not: anthropic
+- id: e2e-architecture
+  inputs:
+    role: e2e-validator
+    story: E2E-301 — Vérifier l’architecture du parcours de recherche après extraction des services.
+    diff_stats: 12 files changed, 520 insertions(+), 80 deletions(-)
+    dev_model: claude-sonnet-5.5
+    budget_profile: premium
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    max_cost: 100
+    cost_range:
+    - 1
+    - 100
+    family_not: anthropic
+- id: e2e-multi-modules
+  inputs:
+    role: e2e-validator
+    story: E2E-302 — Rejouer les parcours multi-modules du transfert de dossier.
+    diff_stats: 12 files changed, 520 insertions(+), 80 deletions(-)
+    dev_model: claude-sonnet-5.5
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+    family_not: anthropic
+- id: e2e-grand-diff
+  inputs:
+    role: e2e-validator
+    story: E2E-303 — Valider la nouvelle chaîne des notifications de rendez-vous.
+    diff_stats: 12 files changed, 520 insertions(+), 80 deletions(-)
+    dev_model: claude-sonnet-5.5
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+    family_not: anthropic
+- id: e2e-cve
+  inputs:
+    role: e2e-validator
+    story: E2E-401 — Vérifier le scénario d’exploitation de la CVE-2026-42424 dans une instance isolée.
+    files: 5
+    dev_model: claude-sonnet-5.5
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+    family_not: anthropic
+- id: e2e-fuite
+  inputs:
+    role: e2e-validator
+    story: E2E-402 — Confirmer que l’autorisation bloque la fuite de données entre locataires.
+    files: 5
+    dev_model: claude-sonnet-5.5
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+    family_not: anthropic
+- id: e2e-migration
+  inputs:
+    role: e2e-validator
+    story: E2E-403 — Valider la migration avec rollback après interruption réseau.
+    files: 5
+    dev_model: claude-sonnet-5.5
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+    family_not: anthropic
+- id: reviewer-texte
+  inputs:
+    role: reviewer
+    story: REV-101 — Relire le texte d’erreur quand une pièce jointe dépasse la limite.
+    files: 1
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+    family_not: openai
+- id: reviewer-typo
+  inputs:
+    role: reviewer
+    story: REV-102 — Revoir la typo et les accents du courriel de bienvenue.
+    files: 1
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+    family_not: openai
+- id: reviewer-renommage
+  inputs:
+    role: reviewer
+    story: REV-103 — Vérifier le renommage d’une constante dans le formateur de monnaie.
+    files: 1
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+    family_not: openai
+- id: reviewer-export
+  inputs:
+    role: reviewer
+    story: REV-201 — Revoir la validation et les tests de l’export CSV des inscriptions.
+    files: 4
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+    family_not: openai
+- id: reviewer-auth
+  inputs:
+    role: reviewer
+    story: REV-202 — Revoir la mise en page du panneau auth et ses états de chargement.
+    files: 4
+    dev_family: anthropic
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+    family_not: anthropic
+- id: reviewer-tri
+  inputs:
+    role: reviewer
+    story: REV-203 — Vérifier la stabilité du tri des résultats et la pagination.
+    files: 4
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+    family_not: openai
+- id: reviewer-refactor
+  inputs:
+    role: reviewer
+    story: REV-301 — Revoir le refactor des adaptateurs de recherche et les contrats publics.
+    files: 15
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+    family_not: openai
+- id: reviewer-architecture
+  inputs:
+    role: reviewer
+    story: REV-302 — Évaluer l’architecture proposée pour le traitement des pièces jointes.
+    files: 15
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+    family_not: openai
+- id: reviewer-large
+  inputs:
+    role: reviewer
+    story: REV-303 — Vérifier les interactions entre les composants de suivi des dossiers.
+    files: 15
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+    family_not: openai
+- id: reviewer-faille
+  inputs:
+    role: reviewer
+    story: REV-401 — Revoir le correctif d’une faille dans le filtre des chemins de fichiers.
+    files: 4
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+    family_not: openai
+- id: reviewer-paiement
+  inputs:
+    role: reviewer
+    story: REV-402 — Vérifier le traitement du paiement en production après un redémarrage.
+    files: 4
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+    family_not: openai
+- id: reviewer-migration
+  inputs:
+    role: reviewer
+    story: REV-403 — Revoir le protocole de migration des numéros de dossiers.
+    files: 20
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+    family_not: openai
+- id: planner-typo
+  inputs:
+    role: planner
+    story: PLAN-101 — Planifier la correction d’une typo dans le guide d’accueil.
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: planner-bouton
+  inputs:
+    role: planner
+    story: PLAN-102 — Lister les étapes pour ajuster le libellé du bouton de retour.
+    files: 1
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+- id: planner-calendrier
+  inputs:
+    role: planner
+    story: PLAN-201 — Découper l’ajout d’un filtre par établissement au calendrier.
+    files: 4
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: planner-export
+  inputs:
+    role: planner
+    story: PLAN-202 — Établir les étapes et critères d’acceptation de l’export des inscriptions.
+    files: 4
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: planner-sans-mesure
+  inputs:
+    role: planner
+    story: PLAN-203 — Préparer les étapes pour offrir une préférence de langue par personne.
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: planner-architecture
+  inputs:
+    role: planner
+    story: PLAN-301 — Concevoir l’architecture du traitement asynchrone des notifications.
+    story_type: refactor
+    files: 8
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: planner-refactor
+  inputs:
+    role: planner
+    story: PLAN-302 — Découper le refactor multi-modules de la recherche documentaire.
+    story_type: refactor
+    files: 8
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: planner-spike
+  inputs:
+    role: planner
+    story: PLAN-303 — Explorer les solutions de cache et chiffrer un prototype hors connexion.
+    story_type: spike
+    files: 8
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+- id: planner-cve
+  inputs:
+    role: planner
+    story: PLAN-401 — Planifier la réponse à CVE-2026-11223 et les étapes de déploiement du correctif.
+    files: 8
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: planner-migration
+  inputs:
+    role: planner
+    story: PLAN-402 — Organiser la migration des historiques avec une procédure de rollback.
+    files: 8
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: budget-serre-eco
+  inputs:
+    role: dev
+    story: BUD-501 — Refactor des adaptateurs de notification dans une petite enveloppe.
+    max_cost: 5
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: economy
+    cost_range:
+    - 2
+    - 5
+    max_cost: 5
+- id: budget-serre-standard
+  inputs:
+    role: dev
+    story: BUD-502 — Corriger une vulnérabilité avec un plafond explicite pour ce choix.
+    max_cost: 35
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+    max_cost: 35
+- id: budget-frontier-exact
+  inputs:
+    role: dev
+    story: BUD-503 — Corriger une faille du parseur avec un plafond à la limite admissible.
+    max_cost: '42.0'
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+    max_cost: 42
+- id: budget-zero-impossible
+  inputs:
+    role: dev
+    story: BUD-504 — Ajouter le filtre des réservations avec une enveloppe nulle.
+    max_cost: 0
+  expect_exit: 2
+  expect: {}
+- id: budget-sous-minimum
+  inputs:
+    role: planner
+    story: BUD-505 — Définir les étapes du changement avec un plafond inférieur au coût minimal.
+    max_cost: '2.0999'
+  expect_exit: 2
+  expect: {}
+- id: budget-profil-economy
+  inputs:
+    role: dev
+    story: BUD-506 — Refactor du cache avec le profil economy.
+    budget_profile: economy
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: economy
+    cost_range:
+    - 1
+    - 25
+    max_cost: 5
+- id: budget-profil-standard
+  inputs:
+    role: planner
+    story: BUD-507 — Planifier le refactor du moteur de recherche sous le profil standard.
+    budget_profile: standard
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+    max_cost: 35
+- id: budget-e2e-impossible
+  inputs:
+    role: e2e-validator
+    story: BUD-508 — Valider le parcours d’inscription avec un budget incompatible avec le minimum du rôle.
+    files: 4
+    max_cost: 5
+    dev_model: claude-sonnet-5.5
+  expect_exit: 2
+  expect: {}
+- id: famille-e2e-impossible
+  inputs:
+    role: e2e-validator
+    story: ORG-501 — Valider le parcours de réservation; seul le fournisseur du dev est autorisé.
+    files: 4
+    available:
+    - claude-opus-5.5
+    - claude-sonnet-5.5
+    dev_model: claude-sonnet-5.5
+  expect_exit: 3
+  expect: {}
+- id: famille-reviewer-impossible
+  inputs:
+    role: reviewer
+    story: ORG-502 — Revoir le changement de filtre avec une seule famille accessible.
+    files: 4
+    available:
+    - gpt-6-sol
+    dev_model: gpt-6-sol
+  expect_exit: 3
+  expect: {}
+- id: famille-dev-manquante
+  inputs:
+    role: reviewer
+    story: ORG-503 — Revoir le formulaire sans avoir reçu les renseignements sur le dev.
+    files: 4
+  expect_exit: 3
+  expect: {}
+- id: famille-contradictoire
+  inputs:
+    role: reviewer
+    story: ORG-504 — Revoir les changements avec des renseignements de dev contradictoires.
+    files: 4
+    dev_model: claude-sonnet-5.5
+    dev_family: openai
+  expect_exit: 3
+  expect: {}
+- id: available-repli-inferieur
+  inputs:
+    role: dev
+    story: ORG-505 — Refactor du moteur de recherche avec un catalogue restreint.
+    available:
+    - gpt-6.1-terra
+    - claude-haiku-5.5
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier:
+    - economy
+    - standard
+    cost_range:
+    - 1
+    - 70
+- id: available-repli-superieur
+  inputs:
+    role: dev
+    story: ORG-506 — Ajouter la pagination des dossiers; le catalogue ne contient qu’un tier supérieur.
+    files: 4
+    available:
+    - gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: available-doc-repli
+  inputs:
+    role: doc
+    story: ORG-507 — Corriger une typo de la doc avec un seul tier standard disponible.
+    files: 1
+    available:
+    - gpt-6.1-terra
+  expect_exit: 0
+  expect:
+    level: trivial
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: available-politique-desactivee
+  inputs:
+    role: dev
+    story: ORG-508 — Corriger une faille; le candidat supérieur est désactivé par la politique.
+    available:
+    - id: gpt-6-sol
+      policy:
+        state: disabled
+    - id: gpt-6.1-terra
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: available-preview-explicite
+  inputs:
+    role: dev
+    story: ORG-509 — Reproduire la vulnérabilité en autorisant explicitement un modèle en aperçu.
+    available:
+    - claude-opus-4.8-fast
+    allow_preview: true
+  expect_exit: 0
+  expect:
+    level: critique
+    tier: frontier
+    cost_range:
+    - 1
+    - 250
+- id: live-panne-simulee
+  inputs:
+    role: dev
+    story: ORG-510 — Tenter de router le parcours avec un CLI absent pour simuler une découverte live inaccessible.
+    available: live
+  expect_exit: 4
+  expect: {}
+  simulate_live_failure: true
+- id: nouveau-modele-provisoire
+  inputs:
+    role: dev
+    story: FUTUR-501 — Refactor des adaptateurs avec une nouvelle lignée dont le comparatif manque.
+    available:
+    - gpt-7-nova
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 5
+    - 10
+    tier_provisoire: true
+    warning_contains: à valider
+  simulate_model:
+    model: GPT-7 Nova
+    provider: openai
+    category: Powerful
+    input: $0.50
+    cached_input: $0.05
+    output: $1.00
+- id: nouveau-modele-lignee-inconnue
+  inputs:
+    role: test
+    story: FUTUR-502 — Couvrir les scénarios du calendrier avec une nouvelle gamme inconnue du registre.
+    files: 4
+    available:
+    - erable-boreal
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 5
+    - 10
+    tier_provisoire: true
+    warning_contains: à valider
+  simulate_model:
+    model: Erable Boreal
+    provider: openai
+    category: Versatile
+    input: $0.50
+    cached_input: $0.05
+    output: $1.00
+    comparison:
+      task_area: Deep reasoning
+      excels_at: Long-horizon verification
+- id: injection-dependances
+  inputs:
+    role: dev
+    story: ARCH-501 — Ajouter l’injection de dépendances au contrôleur des rendez-vous pour faciliter les tests
+      unitaires.
+    files: 4
+  expect_exit: 0
+  expect:
+    level: standard
+    tier: standard
+    cost_range:
+    - 1
+    - 70
+- id: dependency-injection
+  inputs:
+    role: reviewer
+    story: ARCH-502 — Revoir le refactor du conteneur de services; le module utilise dependency injection pour
+      remplacer les adaptateurs.
+    files: 12
+    dev_model: gpt-6-sol
+  expect_exit: 0
+  expect:
+    level: complexe
+    tier: premium
+    cost_range:
+    - 1
+    - 100
+    family_not: openai
