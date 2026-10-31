@@ -49,7 +49,7 @@ sans `--refresh` sont en Python.
 
 ## 3. Vérifier les modèles de l’organisation
 
-Sur le poste de travail authentifié avec les droits Copilot :
+Sur un poste de travail authentifié avec les droits Copilot :
 
 ```bash
 copilot login

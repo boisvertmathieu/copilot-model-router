@@ -193,4 +193,4 @@ La vérification préalable des modèles évite un lancement partiel causé par 
 
 Avec `--json`, lire le code du processus avant d'accéder à `id`. Un code **2** signifie qu'aucun candidat ne respecte le budget; un code **3** signifie que la séparation des fournisseurs ne peut pas être établie. Le JSON contient la raison et aucune commande de lancement.
 
-Ne pas substituer le modèle du dev dans un bloc de récupération d'erreur. Il faut rendre accessible une autre famille, revoir le budget avec l'utilisateur ou suspendre ce lancement. Un échec de découverte donne le code **4** : régler la connexion, le CLI ou la licence avant de reprendre.
+Ne pas substituer le modèle du dev dans un bloc de récupération d'erreur. Il faut rendre accessible une autre famille, revoir le budget avec le responsable ou suspendre ce lancement. Un échec de découverte donne le code **4** : régler la connexion, le CLI ou la licence avant de reprendre.

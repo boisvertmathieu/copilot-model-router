@@ -1,6 +1,6 @@
 # Un modèle Copilot par rôle dans Herdr
 
-L'orchestrateur de utilisateur lance ses équipiers avec GitHub Copilot CLI dans Herdr, sous WSL. Avant chaque équipier, le routeur classe la tâche (`trivial`, `standard`, `complexe`, `critique`), puis réutilise le sélecteur pour choisir un modèle selon le rôle, la disponibilité et le budget. Le validateur e2e **et** le réviseur doivent utiliser un fournisseur différent de celui du dev.
+Un orchestrateur multi-agents lance ses équipiers avec GitHub Copilot CLI dans Herdr, sous WSL. Avant chaque équipier, le routeur classe la tâche (`trivial`, `standard`, `complexe`, `critique`), puis réutilise le sélecteur pour choisir un modèle selon le rôle, la disponibilité et le budget. Le validateur e2e **et** le réviseur doivent utiliser un fournisseur différent de celui du dev.
 
 Le registre contient **26 modèles** issus du croisement des tarifs officiels et du support CLI. La synchronisation réseau a été exécutée; 25 ID ont aussi été repérés dans le catalogue intégré du CLI 1.0.105. L'accès au compte reste inconnu pour tous les modèles; `gpt-6.1-terra` garde `id_verified: false`.
 
@@ -47,7 +47,7 @@ Le [guide d’évaluation](eval/README.md) fournit les parcours pas à pas avec 
 
 Sur le poste de travail : `uv run bash scripts/refresh.sh`, puis `uv run python eval/run_eval.py --available live`. Le contrôle de dérive exige des tiers associés à tous les modèles org et signale les modèles actifs du registre absents du catalogue. `--judge --copilot --judge-model ID_MODELE_ECO` active le juge Copilot, avec un seuil moyen de 0,85 par défaut. **Le juge Copilot réel et /models live n’ont pas été testés ici**; les essais utilisent des simulations.
 
-## Sur le poste de travail avec accès Copilot
+## En environnement de travail avec accès Copilot
 
 ```bash
 copilot login

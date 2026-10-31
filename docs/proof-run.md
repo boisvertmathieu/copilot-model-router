@@ -1,6 +1,6 @@
 # Preuve d'exécution
 
-Exécuté le 2026-10-30 20:31 (heure locale) sur la box de développement, contre models.yaml tel que commité. **Pas testé contre l'org Copilot réelle** (aucune licence Copilot ici).
+Exécuté le 2026-10-30 20:31 (heure locale) sur la box de développement, contre models.yaml tel que commité. **Pas testé contre une org Copilot réelle** (aucune licence Copilot ici).
 
 ## 1. Dev economy
 

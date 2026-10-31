@@ -1,6 +1,6 @@
 # Instructions d'orchestration Copilot à copier
 
-Ces instructions sont un exemple pour l'orchestrateur sous WSL avec Herdr. Adapter les chemins vers ce dépôt et les ID de panneaux au poste de travail.
+Ces instructions sont un exemple pour un orchestrateur multi-agents sous WSL avec Herdr. Adapter les chemins vers ce dépôt et les ID de panneaux au poste de travail.
 
 ## Préparer les choix de modèles
 

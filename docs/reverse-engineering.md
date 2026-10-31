@@ -1,6 +1,6 @@
 # Comment Copilot découvre ses modèles
 
-Enquête effectuée le 30 octobre 2026 localement (31 octobre en UTC). Aucune licence Copilot sur cette machine. **Aucune réponse de l'API Copilot réelle n'a été obtenue ou inspectée, et aucune inférence n'a été exécutée.** Les réponses du serveur local décrites plus bas sont entièrement simulées.
+Enquête effectuée le 30 octobre 2026 (31 octobre en UTC). Aucune licence Copilot sur cette machine. **Aucune réponse de l'API Copilot réelle n'a été obtenue ou inspectée, et aucune inférence n'a été exécutée.** Les réponses du serveur local décrites plus bas sont entièrement simulées.
 
 « VÉRIFIÉ » signifie qu'un comportement a été lu dans une source identifiable ou observé localement; ça ne veut pas dire qu'il a été validé avec un abonnement. « SUPPOSÉ » désigne une déduction à confirmer sur le poste de travail.
 

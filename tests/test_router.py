@@ -175,7 +175,7 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, 2)
 
     def test_herdr_cmd_quoting_et_options(self):
-        name = "dev de utilisateur; echo 'test'"
+        name = "dev de l'équipe; echo 'test'"
         before = copy.deepcopy(self.registry)
         result = route(self.registry, role="dev", name=name, pane="%3")
         expected = ["herdr", "agent", "start", name, "--kind", "copilot", "--pane", "%3",

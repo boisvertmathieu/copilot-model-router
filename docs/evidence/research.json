@@ -1,5 +1,5 @@
 {
-  "date_locale": "2026-10-30 UTC",
+  "date_locale": "2026-10-30 (heure locale)",
   "sdk": {
     "repository": "https://github.com/github/copilot-sdk",
     "commit": "e22b95e6ead5e1de7e9a68d3087b8d28dc5f364a"
