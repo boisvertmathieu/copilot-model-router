@@ -81,6 +81,8 @@ Les modèles retirés des tarifs ou du support CLI restent archivés avec `retir
 
 Les champs suivants sont conservés : `id`, `id_verified`, `id_source`, `aliases`, `notes`, les autres champs personnels, `tier_override`, `manual_capabilities`, `role_defaults` et `budget_profiles`. Utiliser **`tier_override`** pour personnaliser un niveau et **`manual_capabilities`** pour ajouter des tags. Les champs dérivés `tier` et `capabilities` sont recalculés à chaque sync. Les tarifs, le fournisseur officiel, le statut et le support CLI appartiennent aux sources et sont actualisés.
 
+Un nouveau modèle sans niveau connu reçoit aussi `tier_provisoire: true` et `tier_note` contenant « à valider ». Ce marqueur reste jusqu'à la confirmation explicite par `tier_override`; les choix l'acceptent en l'annonçant dans `reason` et `warnings`. Les modèles déjà classés restent compatibles. Voir le [guide du routeur](router.md#nouveaux-modèles-et-niveau-provisoire).
+
 `capabilities` contient des tags de tâches en français dérivés de `model-comparison.yml`; ce ne sont pas des limites ou des fonctions testées. La structure technique importée du CLI est conservée séparément sous `runtime`, y compris ses données de facturation. Elle ne remplace jamais les tarifs officiels du calcul.
 
 Sans `--from-cli-models`, le dernier constat de disponibilité importé reste en place, avec sa date; il n'est pas rafraîchi par un téléchargement de documentation. Pour un lancement, fournir un catalogue récent à `--available`.

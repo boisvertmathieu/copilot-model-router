@@ -2,7 +2,97 @@
 
 Herdr doit recevoir le choix de modèle au lancement de chaque équipier. Le sélecteur retourne un ID et une commande; il ne modifie pas le modèle global du CLI.
 
+Le point d'entrée recommandé pour une mission est maintenant [`scripts/route.py`](../scripts/route.py). Il classe la tâche, ajuste le niveau selon le rôle et appelle le sélecteur existant. Le [guide du routeur](router.md) décrit les signaux, les budgets et le serveur stdio. Les exemples de sélection directe plus bas restent utiles pour imposer un niveau manuellement.
+
 La forme de transmission des arguments natifs est confirmée par l'[historique officiel Herdr](https://github.com/herdrdev/herdr/blob/master/CHANGELOG.md#075---2026-07-21). Le CLI inspecté accepte `--model`; son aide confirme aussi `--context default` et `--max-ai-credits`. Aucun lancement Herdr n'a été effectué dans cet environnement.
+
+## Orchestrateur Bash avec le routeur
+
+À lancer depuis la racine du dépôt, sur le poste de travail disposant de Copilot et de Herdr. Préparer `mission.txt`, un catalogue réel récent et trois panneaux libres distincts :
+
+```bash
+python3 scripts/list_copilot_models.py --output copilot-models.local.json
+python3 scripts/sync_registry.py --from-cli-models copilot-models.local.json
+export PANE_DEV=1 PANE_E2E=2 PANE_REVIEW=3  # À adapter à la session Herdr.
+```
+
+Chaque équipier reçoit son propre appel au routeur. La famille **réellement retenue pour le dev** est passée au validateur et au réviseur. Toutes les sélections sont vérifiées avant le premier lancement :
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+: "${PANE_DEV:?Définir le panneau du dev}"
+: "${PANE_E2E:?Définir le panneau e2e}"
+: "${PANE_REVIEW:?Définir le panneau de revue}"
+if [[ "$PANE_DEV" == "$PANE_E2E" || "$PANE_DEV" == "$PANE_REVIEW" || "$PANE_E2E" == "$PANE_REVIEW" ]]; then
+    echo "Chaque équipier doit avoir un panneau distinct." >&2
+    exit 1
+fi
+
+recit_cmr=${CMR_STORY_FILE:-mission.txt}
+catalogue_cmr=${CMR_CATALOGUE:-copilot-models.local.json}
+routes_cmr=$(mktemp -d)
+trap 'rm -rf -- "$routes_cmr"' EXIT
+famille_dev_cmr=""
+roles_cmr=(dev e2e-validator reviewer)
+
+for role_cmr in "${roles_cmr[@]}"; do
+    case "$role_cmr" in
+        dev) panneau_cmr=$PANE_DEV ;;
+        e2e-validator) panneau_cmr=$PANE_E2E ;;
+        reviewer) panneau_cmr=$PANE_REVIEW ;;
+    esac
+    arguments_cmr=(python3 scripts/route.py --role "$role_cmr" --story "@$recit_cmr"
+        --max-cost 100 --available "$catalogue_cmr" --pane "$panneau_cmr"
+        --name "mission-$role_cmr" --json)
+    if [[ "$role_cmr" != dev ]]; then
+        arguments_cmr+=(--dev-family "$famille_dev_cmr")
+    fi
+    fiche_cmr="$routes_cmr/$role_cmr.json"
+    if "${arguments_cmr[@]}" > "$fiche_cmr"; then
+        :
+    else
+        statut_cmr=$?
+        cat -- "$fiche_cmr" >&2
+        exit "$statut_cmr"  # Codes 2/3/4 : aucun lancement de cette équipe.
+    fi
+    famille_cmr=$(python3 - "$fiche_cmr" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+choix = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if choix["available"] is not True or not choix["id_verified"]:
+    raise SystemExit("Confirmer la disponibilité et l'ID avant Herdr.")
+print(choix["family"])
+PY
+    )
+    if [[ "$role_cmr" == dev ]]; then
+        famille_dev_cmr=$famille_cmr
+    fi
+done
+
+for role_cmr in "${roles_cmr[@]}"; do
+    python3 - "$routes_cmr/$role_cmr.json" <<'PY'
+import json
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+choix = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(f"{choix['role']} : {choix['model']} ({choix['family']})", flush=True)
+# Lire herdr_cmd avec Python; shlex restitue les arguments quotés, sans eval.
+subprocess.run(shlex.split(choix["herdr_cmd"]), check=True)
+PY
+done
+```
+
+Ajouter les rôles `test`, `doc` ou `planner` à la boucle avec leurs panneaux au besoin. Seuls `e2e-validator` et `reviewer` exigent la famille du dev. Les noms `mission-*` doivent être libres; utiliser un préfixe propre à chaque mission si plusieurs équipes coexistent.
+
+Pour éviter de relire le registre à chaque appel, garder un processus `route.py --serve` et remplacer chaque invocation par une requête `route`. Conserver les `result.family` du dev, envoyer les clés en `snake_case`, vérifier `error.data.exit_code` avant de lire `result.herdr_cmd`, puis utiliser le même lancement sans shell. Le [protocole stdio](router.md#serveur-json-rpc-20-sur-stdio) donne le format et la méthode `reload` après une sync.
+
+Cet orchestrateur est un exemple à adapter au poste de travail. Il n'a démarré aucun agent Herdr ici; les tests locaux et les [preuves](router-proof.md) vérifient la préparation des choix et des commandes.
 
 ## Commandes directes
 
