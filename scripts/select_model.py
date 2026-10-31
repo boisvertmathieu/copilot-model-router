@@ -148,7 +148,8 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
     if min_level or max_level:
         reasons.append(f"Bornes du rôle respectées : {min_level or 'economy'} à {max_level or 'frontier'}.")
     if chosen.get("tier_provisoire"):
-        notice = f"Niveau {chosen['tier']} provisoire, déduit de la catégorie et du prix : à valider."
+        notice = (f"Niveau {chosen['tier']} provisoire : "
+                  + chosen.get("tier_note", "métadonnées GitHub insuffisantes; à valider."))
         reasons.append(notice)
         warnings.append(notice)
     if chosen.get("available") is None:

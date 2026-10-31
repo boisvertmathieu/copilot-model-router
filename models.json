@@ -41,8 +41,32 @@
     }
   },
   "policy": {
-    "frontier_min_cost_index": 100,
-    "description": "Lightweight → economy; Versatile → standard; Powerful → premium, ou frontier dès 100 crédits."
+    "description": "Score de métadonnées GitHub, pas des benchmarks; aucun prix dans le niveau. Catégorie seule si le comparatif ou la lignée manque; monotonie par lignée après scoring, puis coût minimal dans le meilleur niveau admissible.",
+    "scoring_version": 1,
+    "category_scores": {
+      "Lightweight": 10,
+      "Versatile": 35,
+      "Powerful": 65
+    },
+    "tier_thresholds": {
+      "economy": 0,
+      "standard": 30,
+      "premium": 60,
+      "frontier": 85
+    },
+    "weights": {
+      "deep_reasoning": 18,
+      "complex": 10,
+      "long_horizon": 12,
+      "validation": 6,
+      "simple_or_fast": -8,
+      "context_200k": 2,
+      "long_context_tier": 2,
+      "ga": 2,
+      "preview": -2,
+      "generation_step": 4,
+      "generation_max": 12
+    }
   },
   "models": [
     {
@@ -74,17 +98,38 @@
       "capabilities": [
         "agentique",
         "code",
+        "raisonnement",
         "redaction"
       ],
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Long-horizon, autonomous coding and knowledge-work",
+        "excels_at": "First-attempt correctness through upfront reasoning, aggressive parallel tool batching, and proactive verification of pre-existing test state before debugging"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 85,
+        "components": {
+          "category": 65,
+          "long_horizon": 12,
+          "validation": 6,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "claude-fable",
+        "version": "5",
+        "tier_scored": "frontier"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "claude-fable-5.1",
@@ -115,17 +160,38 @@
       "capabilities": [
         "agentique",
         "code",
+        "raisonnement",
         "redaction"
       ],
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Long-horizon, autonomous coding and knowledge-work",
+        "excels_at": "Substantial, long-running coding tasks, including deep codebase research, feature development, and complex agentic workflows"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 93,
+        "components": {
+          "category": 65,
+          "complex": 10,
+          "long_horizon": 12,
+          "ga": 2,
+          "generation": 4
+        },
+        "lineage": "claude-fable",
+        "version": "5.1",
+        "tier_scored": "frontier"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "claude-haiku-4.5",
@@ -140,7 +206,7 @@
       "release_status": "GA",
       "preview": false,
       "github_category": "Versatile",
-      "tier": "standard",
+      "tier": "economy",
       "pricing": {
         "currency": "USD",
         "per_tokens": 1000000,
@@ -160,12 +226,31 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Fast help with simple or repetitive tasks",
+        "excels_at": "Fast, reliable answers to lightweight coding questions"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 29,
+        "components": {
+          "category": 35,
+          "simple_or_fast": -8,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "claude-haiku",
+        "version": "4.5",
+        "tier_scored": "economy"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "claude-haiku-5.5",
@@ -200,12 +285,35 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Fast help with simple or repetitive tasks",
+        "excels_at": "Fast, reliable answers to lightweight coding questions"
+      },
+      "github_context": {
+        "default_limit_tokens": 100000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 10,
+        "components": {
+          "category": 10,
+          "simple_or_fast": -8,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 4
+        },
+        "lineage": "claude-haiku",
+        "version": "5.5",
+        "tier_scored": "economy"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "claude-opus-4.8",
@@ -240,12 +348,31 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Deep reasoning and debugging",
+        "excels_at": "Complex problem-solving challenges, sophisticated reasoning"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 85,
+        "components": {
+          "category": 65,
+          "deep_reasoning": 18,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "claude-opus",
+        "version": "4.8",
+        "tier_scored": "frontier"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "claude-opus-4.8-fast",
@@ -280,12 +407,31 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Deep reasoning and debugging",
+        "excels_at": "Complex problem-solving challenges, sophisticated reasoning"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 85,
+        "components": {
+          "category": 65,
+          "deep_reasoning": 18,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "claude-opus",
+        "version": "4.8",
+        "tier_scored": "frontier"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "claude-opus-5",
@@ -320,12 +466,31 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Deep reasoning and debugging",
+        "excels_at": "Complex problem-solving challenges, sophisticated reasoning"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 89,
+        "components": {
+          "category": 65,
+          "deep_reasoning": 18,
+          "ga": 2,
+          "generation": 4
+        },
+        "lineage": "claude-opus",
+        "version": "5",
+        "tier_scored": "frontier"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "claude-opus-5.5",
@@ -340,7 +505,7 @@
       "release_status": "GA",
       "preview": false,
       "github_category": "Powerful",
-      "tier": "premium",
+      "tier": "frontier",
       "pricing": {
         "currency": "USD",
         "per_tokens": 1000000,
@@ -361,12 +526,32 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Long-running agentic coding and knowledge work",
+        "excels_at": "Efficient multistep tasks, error recovery, and collaboration"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 93,
+        "components": {
+          "category": 65,
+          "long_horizon": 12,
+          "validation": 6,
+          "ga": 2,
+          "generation": 8
+        },
+        "lineage": "claude-opus",
+        "version": "5.5",
+        "tier_scored": "frontier"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "claude-sonnet-4.6",
@@ -396,17 +581,37 @@
       "legacy_multiplier": 9.0,
       "capabilities": [
         "agentique",
-        "code"
+        "code",
+        "raisonnement"
       ],
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "General-purpose coding and agent tasks",
+        "excels_at": "Complex problem-solving challenges, sophisticated reasoning"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 55,
+        "components": {
+          "category": 35,
+          "deep_reasoning": 18,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "claude-sonnet",
+        "version": "4.6",
+        "tier_scored": "standard"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "claude-sonnet-5",
@@ -436,17 +641,37 @@
       "legacy_multiplier": null,
       "capabilities": [
         "agentique",
-        "code"
+        "code",
+        "raisonnement"
       ],
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "General-purpose coding and agent tasks",
+        "excels_at": "Complex problem-solving challenges, sophisticated reasoning"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 59,
+        "components": {
+          "category": 35,
+          "deep_reasoning": 18,
+          "ga": 2,
+          "generation": 4
+        },
+        "lineage": "claude-sonnet",
+        "version": "5",
+        "tier_scored": "standard"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "claude-sonnet-5.5",
@@ -481,12 +706,30 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "General-purpose coding and agent tasks",
+        "excels_at": "Efficient task completion with fewer steps, tokens, and tool calls"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 45,
+        "components": {
+          "category": 35,
+          "ga": 2,
+          "generation": 8
+        },
+        "lineage": "claude-sonnet",
+        "version": "5.5",
+        "tier_scored": "standard"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "gemini-3.8-flash",
@@ -501,7 +744,7 @@
       "release_status": "GA",
       "preview": false,
       "github_category": "Versatile",
-      "tier": "standard",
+      "tier": "economy",
       "pricing": {
         "currency": "USD",
         "per_tokens": 1000000,
@@ -521,12 +764,31 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Fast help with simple or repetitive tasks",
+        "excels_at": "Fast, reliable answers to lightweight coding questions"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 29,
+        "components": {
+          "category": 35,
+          "simple_or_fast": -8,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "gemini-flash",
+        "version": "3.8",
+        "tier_scored": "economy"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "gemini-4-argon",
@@ -562,12 +824,32 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Complex coding, agentic, and reasoning tasks",
+        "excels_at": "Thorough work that tests edge cases before finishing"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 83,
+        "components": {
+          "category": 65,
+          "complex": 10,
+          "validation": 6,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "gemini-argon",
+        "version": "4",
+        "tier_scored": "premium"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "mai-code-1.1-flash",
@@ -597,17 +879,37 @@
       "legacy_multiplier": 0.25,
       "capabilities": [
         "code",
-        "redaction"
+        "redaction",
+        "taches_simples"
       ],
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "General-purpose coding and writing, image understanding",
+        "excels_at": "Fast code completions and explanations, instruction following, tool use"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 4,
+        "components": {
+          "category": 10,
+          "simple_or_fast": -8,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "mai-code-flash",
+        "version": "1.1",
+        "tier_scored": "economy"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "kimi-k3",
@@ -643,12 +945,31 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Agentic coding and long-context work",
+        "excels_at": "Multi-step agent tasks across large codebases"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 73,
+        "components": {
+          "category": 65,
+          "validation": 6,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "kimi-k",
+        "version": "3",
+        "tier_scored": "premium"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "gpt-5.3-codex",
@@ -683,12 +1004,30 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Agentic software development",
+        "excels_at": "Agentic tasks"
+      },
+      "github_context": {},
+      "capability": {
+        "score": 67,
+        "components": {
+          "category": 65,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "gpt-codex",
+        "version": "5.3",
+        "tier_scored": "premium"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "gpt-5.6-luna",
@@ -723,12 +1062,36 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Fast help with simple or repetitive tasks",
+        "excels_at": "Quick, cost-efficient responses for smaller, faster coding tasks"
+      },
+      "github_context": {
+        "default_limit_tokens": 200000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 8,
+        "components": {
+          "category": 10,
+          "simple_or_fast": -8,
+          "context_200k": 2,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "gpt-luna",
+        "version": "5.6",
+        "tier_scored": "economy"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "gpt-5.6-sol",
@@ -743,7 +1106,7 @@
       "release_status": "GA",
       "preview": false,
       "github_category": "Powerful",
-      "tier": "premium",
+      "tier": "frontier",
       "pricing": {
         "currency": "USD",
         "per_tokens": 1000000,
@@ -757,18 +1120,45 @@
       "cost_index": 84.0,
       "legacy_multiplier": null,
       "capabilities": [
+        "agentique",
         "code",
+        "contexte_long",
         "raisonnement"
       ],
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Deep reasoning and debugging",
+        "excels_at": "Complex reasoning over large codebases and long-running agentic work"
+      },
+      "github_context": {
+        "default_limit_tokens": 272000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 101,
+        "components": {
+          "category": 65,
+          "deep_reasoning": 18,
+          "long_horizon": 12,
+          "context_200k": 2,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "gpt-sol",
+        "version": "5.6",
+        "tier_scored": "frontier"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "gpt-5.6-terra",
@@ -803,12 +1193,35 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "General-purpose coding and agent tasks",
+        "excels_at": "Balanced everyday interactive and agentic coding"
+      },
+      "github_context": {
+        "default_limit_tokens": 272000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 41,
+        "components": {
+          "category": 35,
+          "context_200k": 2,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "gpt-terra",
+        "version": "5.6",
+        "tier_scored": "standard"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "gpt-6-astra",
@@ -843,12 +1256,37 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Long-horizon, autonomous coding and agentic tasks",
+        "excels_at": "Long-horizon coding tasks with continuous planning, batched diagnosis and verification, and independent result confirmation"
+      },
+      "github_context": {
+        "default_limit_tokens": 272000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 89,
+        "components": {
+          "category": 65,
+          "long_horizon": 12,
+          "validation": 6,
+          "context_200k": 2,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "gpt-astra",
+        "version": "6",
+        "tier_scored": "frontier"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "gpt-6-luna",
@@ -883,12 +1321,36 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Fast help with simple or repetitive tasks",
+        "excels_at": "Quick, cost-efficient responses for smaller, faster tasks"
+      },
+      "github_context": {
+        "default_limit_tokens": 272000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 12,
+        "components": {
+          "category": 10,
+          "simple_or_fast": -8,
+          "context_200k": 2,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 4
+        },
+        "lineage": "gpt-luna",
+        "version": "6",
+        "tier_scored": "economy"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "gpt-6-sol",
@@ -903,7 +1365,7 @@
       "release_status": "GA",
       "preview": false,
       "github_category": "Powerful",
-      "tier": "premium",
+      "tier": "frontier",
       "pricing": {
         "currency": "USD",
         "per_tokens": 1000000,
@@ -923,12 +1385,36 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "Interactive and agentic coding",
+        "excels_at": "All-round development tasks that benefit from careful, multistep validation"
+      },
+      "github_context": {
+        "default_limit_tokens": 272000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 81,
+        "components": {
+          "category": 65,
+          "validation": 6,
+          "context_200k": 2,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 4
+        },
+        "lineage": "gpt-sol",
+        "version": "6",
+        "tier_scored": "premium"
+      },
+      "tier_source": "monotonicity",
+      "tier_provisoire": false
     },
     {
       "id": "gpt-6.1-terra",
@@ -963,12 +1449,35 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "General-purpose coding and agent tasks",
+        "excels_at": "Everyday agentic coding and terminal work"
+      },
+      "github_context": {
+        "default_limit_tokens": 272000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 45,
+        "components": {
+          "category": 35,
+          "context_200k": 2,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 4
+        },
+        "lineage": "gpt-terra",
+        "version": "6.1",
+        "tier_scored": "standard"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "grok-4.5",
@@ -998,17 +1507,42 @@
       "legacy_multiplier": null,
       "capabilities": [
         "agentique",
-        "code"
+        "code",
+        "raisonnement"
       ],
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "General-purpose coding and agent tasks",
+        "excels_at": "Complex problem-solving challenges, sophisticated reasoning"
+      },
+      "github_context": {
+        "default_limit_tokens": 200000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 59,
+        "components": {
+          "category": 35,
+          "deep_reasoning": 18,
+          "context_200k": 2,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 0
+        },
+        "lineage": "grok",
+        "version": "4.5",
+        "tier_scored": "standard"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     },
     {
       "id": "grok-4.6",
@@ -1023,47 +1557,7 @@
       "release_status": "GA",
       "preview": false,
       "github_category": "Versatile",
-      "tier": "standard",
-      "pricing": {
-        "currency": "USD",
-        "per_tokens": 1000000,
-        "tier": "Default",
-        "threshold": "≤ 200K",
-        "input": 2.0,
-        "output": 6.0,
-        "cached_input": 0.5,
-        "cache_write": null
-      },
-      "cost_index": 37.0,
-      "legacy_multiplier": null,
-      "capabilities": [
-        "agentique",
-        "code"
-      ],
-      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
-      "source": {
-        "date": "2026-10-31",
-        "mode": "network",
-        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
-        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
-        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
-        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
-    },
-    {
-      "id": "grok-4.7",
-      "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
-      "aliases": [],
-      "available": null,
-      "display_name": "Grok 4.7",
-      "family": "xai",
-      "cli": true,
-      "retired": false,
-      "release_status": "GA",
-      "preview": false,
-      "github_category": "Versatile",
-      "tier": "standard",
+      "tier": "premium",
       "pricing": {
         "currency": "USD",
         "per_tokens": 1000000,
@@ -1084,17 +1578,107 @@
       "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
       "source": {
         "date": "2026-10-31",
-        "mode": "network",
+        "mode": "local",
         "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
         "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
         "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
         "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
-      }
+      },
+      "github_comparison": {
+        "task_area": "General-purpose coding and agent tasks",
+        "excels_at": "Complex problem-solving challenges, sophisticated reasoning"
+      },
+      "github_context": {
+        "default_limit_tokens": 200000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 63,
+        "components": {
+          "category": 35,
+          "deep_reasoning": 18,
+          "context_200k": 2,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 4
+        },
+        "lineage": "grok",
+        "version": "4.6",
+        "tier_scored": "premium"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
+    },
+    {
+      "id": "grok-4.7",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Grok 4.7",
+      "family": "xai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "premium",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 200K",
+        "input": 2.0,
+        "output": 6.0,
+        "cached_input": 0.5,
+        "cache_write": null
+      },
+      "cost_index": 37.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code",
+        "raisonnement"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "local",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      },
+      "github_comparison": {
+        "task_area": "Agentic coding and complex, multistep workflows",
+        "excels_at": "Complex problem-solving challenges, sophisticated reasoning"
+      },
+      "github_context": {
+        "default_limit_tokens": 200000,
+        "long_context_tier": true
+      },
+      "capability": {
+        "score": 73,
+        "components": {
+          "category": 35,
+          "deep_reasoning": 18,
+          "validation": 6,
+          "context_200k": 2,
+          "long_context_tier": 2,
+          "ga": 2,
+          "generation": 8
+        },
+        "lineage": "grok",
+        "version": "4.7",
+        "tier_scored": "premium"
+      },
+      "tier_source": "score",
+      "tier_provisoire": false
     }
   ],
   "sync": {
-    "checked_at": "2026-10-31T00:31:25.001385+00:00",
-    "mode": "network",
+    "checked_at": "2026-10-31T01:56:51.433693+00:00",
+    "mode": "local",
     "files": {
       "models-and-pricing.yml": {
         "url": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
@@ -1114,5 +1698,5 @@
       }
     }
   },
-  "_yaml_sha256": "ea15f6b3f3196fdf79c11effdf59168226b019dce2bbc455ac97067cade4baed"
+  "_yaml_sha256": "fbd80816f597b457b0dfea8a5497c6c6cd7caea05c450cf5cd28ab9f8146e412"
 }

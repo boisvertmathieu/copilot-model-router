@@ -7,6 +7,7 @@ import argparse
 import copy
 import hashlib
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,8 +15,8 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from registry_lib import (
-    ROOT, TABLE_FILES, TABLE_BASE, REFERENCE_TASK, ROLE_LEVELS, LEVELS,
-    catalog_entries, clean_name, decimal_number, derived_tier, dump_json,
+    ROOT, TABLE_FILES, TABLE_BASE, REFERENCE_TASK, ROLE_LEVELS,
+    CAPABILITY_POLICY, assign_model_tiers, catalog_entries, clean_name, decimal_number, dump_json,
     entry_selectable, load_registry, matching_entries, name_key, probable_id,
     reference_cost, write_atomic,
 )
@@ -47,7 +48,7 @@ def money(value, *, optional=False):
 
 def capabilities_from_comparison(comparison: dict) -> list[str]:
     """Tags de tâches éditoriaux; aucune capacité technique n'est inventée."""
-    area = str(comparison.get("task_area", "")).casefold()
+    area = " ".join(str(comparison.get(field, "")) for field in ("task_area", "excels_at")).casefold()
     tags = ["code"]
     if "agent" in area or "autonomous" in area:
         tags.append("agentique")
@@ -60,6 +61,27 @@ def capabilities_from_comparison(comparison: dict) -> list[str]:
     if "long-context" in area or "large" in area:
         tags.append("contexte_long")
     return tags
+
+
+def context_from_metadata(rows: list[dict], comparison: dict, client: dict) -> dict:
+    """Lit les limites explicites et les paliers; un seuil tarifaire n'est pas une fenêtre."""
+    context = {}
+    for row in [*rows, comparison, client]:
+        for field in ("context_window", "context_window_tokens", "max_context_tokens"):
+            value = row.get(field)
+            if value is not None:
+                match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*([kKmM]?)\s*", str(value))
+                if match:
+                    tokens = int(float(match[1]) * {"": 1, "k": 1000, "m": 1_000_000}[match[2].lower()])
+                    context["window_tokens"] = max(tokens, context.get("window_tokens", 0))
+        if row.get("tier", "Default") == "Default":
+            match = re.fullmatch(r"\s*(?:≤|<=)\s*(\d+(?:\.\d+)?)\s*([kKmM]?)\s*",
+                                 str(row.get("threshold", "")))
+            if match:
+                context["default_limit_tokens"] = int(float(match[1]) * {"": 1, "k": 1000, "m": 1_000_000}[match[2].lower()])
+        if row.get("tier", "").casefold() == "long context":
+            context["long_context_tier"] = True
+    return context
 
 
 def build_registry(tables: dict, previous: dict | None, date: str,
@@ -77,20 +99,20 @@ def build_registry(tables: dict, previous: dict | None, date: str,
         "premium": {"level": "premium", "max_cost": 100, "description": "Développement soutenu, plafond de 100 crédits."},
         "frontier": {"level": "frontier", "max_cost": 250, "description": "Tâches exigeantes, plafond de 250 crédits."},
     })
-    result["policy"] = {
-        "frontier_min_cost_index": 100,
-        "description": "Lightweight → economy; Versatile → standard; Powerful → premium, ou frontier dès 100 crédits.",
-    }
+    result.setdefault("policy", {}).pop("frontier_min_cost_index", None)
+    result["policy"].update(copy.deepcopy(CAPABILITY_POLICY))
     clients = {name_key(row["name"]): row for row in tables["model-supported-clients.yml"]}
     comparisons = {name_key(row["name"]): row for row in tables["model-comparison.yml"]}
     legacy = {name_key(row["model"]): money(row["new_multiplier"])
               for row in tables["annual-subscriber-model-multipliers.yml"]}
     old = {name_key(row["display_name"]): row for row in previous.get("models", [])}
     default_rows = {}
+    pricing_rows = {}
     for row in tables["models-and-pricing.yml"]:
+        key = name_key(row["model"])
+        pricing_rows.setdefault(key, []).append(row)
         if row.get("tier", "Default") != "Default":
             continue
-        key = name_key(row["model"])
         if key in default_rows:
             raise ValueError(f"Plusieurs tarifs Default pour {row['model']}.")
         default_rows[key] = row
@@ -109,14 +131,6 @@ def build_registry(tables: dict, previous: dict | None, date: str,
         prices["cache_write"] = money(row.get("cache_write"), optional=True)
         cost = reference_cost(prices)
         comparison = comparisons.get(key, {})
-        if model.get("tier_override"):
-            model["tier_provisoire"] = False
-            model.pop("tier_note", None)
-        elif model.get("tier") not in LEVELS:
-            model["tier_provisoire"] = True
-        if model.get("tier_provisoire"):
-            model["tier_note"] = "Niveau déduit de la catégorie et du prix; à valider."
-            report["provisional"].append(name)
         model.setdefault("id", probable_id(name))
         model.setdefault("id_verified", False)
         model.setdefault("id_source", "SUPPOSÉ : slug dérivé du nom officiel; à confirmer avec models.list.")
@@ -132,7 +146,8 @@ def build_registry(tables: dict, previous: dict | None, date: str,
             # Le statut brut est conservé; le nom peut annoncer un aperçu malgré GA.
             "preview": row["release_status"] != "GA" or "preview" in name.casefold(),
             "github_category": row["category"],
-            "tier": model.get("tier_override") or derived_tier(row["category"], cost),
+            "github_comparison": {field: comparison[field] for field in ("task_area", "excels_at") if field in comparison},
+            "github_context": context_from_metadata(pricing_rows[key], comparison, clients[key]),
             "pricing": {"currency": "USD", "per_tokens": 1_000_000,
                         "tier": "Default", "threshold": row.get("threshold", "Not applicable"),
                         **prices},
@@ -146,8 +161,6 @@ def build_registry(tables: dict, previous: dict | None, date: str,
                        "comparison": TABLE_BASE + TABLE_FILES[2],
                        "legacy": TABLE_BASE + TABLE_FILES[3]},
         })
-        if model["tier"] not in LEVELS:
-            raise ValueError(f"tier_override invalide : {model['tier']}.")
         if key not in old:
             report["new"].append(name)
         models.append(model)
@@ -158,7 +171,12 @@ def build_registry(tables: dict, previous: dict | None, date: str,
                 report["removed"].append(model["display_name"])
             model.update(retired=True, cli=False, available=False)
             model["retired_on"] = model.get("retired_on", date)
+            model.setdefault("github_comparison", {field: comparisons.get(key, {})[field]
+                             for field in ("task_area", "excels_at") if field in comparisons.get(key, {})})
             models.append(model)
+    assign_model_tiers(models)
+    report["provisional"] = [model["display_name"] for model in models
+                             if model["tier_provisoire"] and not model.get("retired")]
     if cli_payload is not None:
         entries = catalog_entries(cli_payload)
         used = set()

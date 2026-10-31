@@ -34,6 +34,20 @@ TABLE_FILES = (
     "model-comparison.yml", "annual-subscriber-model-multipliers.yml",
 )
 TABLE_BASE = "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/"
+CAPABILITY_POLICY = {
+    "scoring_version": 1,
+    "category_scores": {"Lightweight": 10, "Versatile": 35, "Powerful": 65},
+    "tier_thresholds": {"economy": 0, "standard": 30, "premium": 60, "frontier": 85},
+    "weights": {"deep_reasoning": 18, "complex": 10, "long_horizon": 12,
+                "validation": 6, "simple_or_fast": -8, "context_200k": 2,
+                "long_context_tier": 2, "ga": 2, "preview": -2,
+                "generation_step": 4, "generation_max": 12},
+    "description": (
+        "Score de métadonnées GitHub, pas des benchmarks; aucun prix dans le niveau. "
+        "Catégorie seule si le comparatif ou la lignée manque; monotonie par lignée "
+        "après scoring, puis coût minimal dans le meilleur niveau admissible."
+    ),
+}
 
 
 def decimal_number(value: Any, label: str = "Valeur") -> Decimal:
@@ -96,6 +110,8 @@ def load_registry(path: Path) -> dict:
         ids.add(model["id"])
         if model.get("tier") not in LEVELS:
             raise ValueError(f"Niveau invalide pour {model['id']}.")
+        if "tier_override" in model and model["tier_override"] not in LEVELS:
+            raise ValueError(f"tier_override invalide pour {model['id']}.")
         if not isinstance(model.get("family"), str) or not model["family"]:
             raise ValueError(f"Famille manquante pour {model['id']}.")
         decimal_number(model.get("cost_index"), f"Coût de {model['id']}")
@@ -194,15 +210,128 @@ def reference_cost(prices: dict) -> float:
     return float(cost)
 
 
-def derived_tier(category: str, cost: float) -> str:
-    """Convention locale : la catégorie prime, puis le prix distingue frontier."""
-    if category == "Lightweight":
-        return "economy"
-    if category == "Versatile":
-        return "standard"
-    if category == "Powerful":
-        return "frontier" if cost >= 100 else "premium"
-    raise ValueError(f"Catégorie GitHub inconnue : {category}. Mise à jour de politique requise.")
+def derived_tier(score: int) -> str:
+    """Transforme le score de capacité en niveau; le prix n'est jamais un signal."""
+    return max((tier for tier in LEVELS
+                if score >= CAPABILITY_POLICY["tier_thresholds"][tier]), key=LEVELS.index)
+
+
+def model_lineage(family: str, name: str) -> tuple[str, tuple[int, ...]] | None:
+    """Lignées distinctes par fournisseur et gamme; versions numériques, sans fast."""
+    name = clean_name(name).casefold()
+    name = re.sub(r"\(preview\)|\(?\bfast(?: mode)?\b\)?", "", name)
+    name = name.strip(" -")
+    version = r"(?P<version>\d+(?:\.\d+)*)"
+    suffix = r"(?:[\s-]+(?P<lineage>[a-z]+))?"
+    patterns = {
+        "anthropic": (rf"claude[\s-]+(?P<lineage>[a-z]+)[\s-]+{version}", "claude"),
+        "openai": (rf"gpt[\s-]+{version}{suffix}", "gpt"),
+        "google": (rf"gemini[\s-]+{version}{suffix}", "gemini"),
+        "xai": (rf"grok[\s-]+{version}{suffix}", "grok"),
+        "microsoft": (rf"mai[\s-]+code[\s-]+{version}{suffix}", "mai-code"),
+        "moonshot_ai": (rf"kimi[\s-]+k{version}", "kimi-k"),
+    }
+    if family not in patterns:
+        return None
+    pattern, prefix = patterns[family]
+    match = re.fullmatch(pattern, name)
+    if not match:
+        return None
+    parts = tuple(map(int, match["version"].split(".")))
+    # 5 et 5.0 représentent la même génération, mais 5.10 vient après 5.9.
+    while len(parts) > 1 and parts[-1] == 0:
+        parts = parts[:-1]
+    lineage = match.groupdict().get("lineage")
+    return prefix + ("-" + lineage if lineage else ""), parts
+
+
+def capability_score(model: dict, *, generation: int = 0) -> tuple[dict, list[str]]:
+    """Heuristique éditoriale reproductible à partir des métadonnées synchronisées."""
+    category = model.get("github_category")
+    if category not in CAPABILITY_POLICY["category_scores"]:
+        raise ValueError(f"Catégorie GitHub inconnue : {category}. Mise à jour de politique requise.")
+    lineage = model_lineage(model["family"], model["display_name"])
+    comparison = model.get("github_comparison", {})
+    missing = []
+    if not any(comparison.get(field) for field in ("task_area", "excels_at")):
+        missing.append("comparatif absent")
+    if lineage is None:
+        missing.append("lignée inconnue")
+    components = {"category": CAPABILITY_POLICY["category_scores"][category]}
+    if not missing:
+        text = " ".join(str(comparison.get(field, "")) for field in ("task_area", "excels_at")).casefold()
+        weights = CAPABILITY_POLICY["weights"]
+        if re.search(r"\b(?:deep|sophisticated) reasoning\b", text):
+            components["deep_reasoning"] = weights["deep_reasoning"]
+        elif re.search(r"\bcomplex\b", text):
+            components["complex"] = weights["complex"]
+        if re.search(r"\blong[- ](?:horizon|running)\b", text):
+            components["long_horizon"] = weights["long_horizon"]
+        if re.search(r"\b(?:multi[- ]?step|verif\w*|validation|confirmation)\b|\btests? edge cases\b", text):
+            components["validation"] = weights["validation"]
+        if re.search(r"\b(?:fast|faster|quick|simple|repetitive|lightweight)\b", text):
+            components["simple_or_fast"] = weights["simple_or_fast"]
+        context = model.get("github_context", {})
+        if max(context.get("window_tokens", 0), context.get("default_limit_tokens", 0)) >= 200_000:
+            components["context_200k"] = weights["context_200k"]
+        if context.get("long_context_tier"):
+            components["long_context_tier"] = weights["long_context_tier"]
+        status = "ga" if model.get("release_status") == "GA" else "preview"
+        components[status] = weights[status]
+        components["generation"] = min(generation * weights["generation_step"], weights["generation_max"])
+    score = max(0, sum(components.values()))
+    return {"score": score, "components": components,
+            "lineage": lineage[0] if lineage else None,
+            "version": ".".join(map(str, lineage[1])) if lineage else None,
+            "tier_scored": derived_tier(score)}, missing
+
+
+def assign_model_tiers(models: list[dict]) -> None:
+    """Score commun aux nouveaux/anciens modèles, puis monotonie des versions.
+
+    Un override prévaut sur le score. Un override contradictoire avec la monotonie
+    est une erreur de configuration, jamais une exception silencieuse à la règle.
+    """
+    groups = {}
+    for model in models:
+        parsed = model_lineage(model["family"], model["display_name"])
+        if parsed:
+            lineage, version = parsed
+            groups.setdefault((model["family"], lineage), {}).setdefault(version, []).append(model)
+    generations = {id(model): generation
+                   for versions in groups.values()
+                   for generation, version in enumerate(sorted(versions))
+                   for model in versions[version]}
+    for model in models:
+        override = model.get("tier_override")
+        if "tier_override" in model and override not in LEVELS:
+            raise ValueError(f"tier_override invalide pour {model['id']} : {override}.")
+        details, missing = capability_score(model, generation=generations.get(id(model), 0))
+        model["capability"] = details
+        model["tier"] = override or details["tier_scored"]
+        model["tier_source"] = "manual" if override else "category_only" if missing else "score"
+        model["tier_provisoire"] = bool(missing and not override)
+        model.pop("tier_note", None)
+        if model["tier_provisoire"]:
+            model["tier_note"] = "Catégorie seule (" + ", ".join(missing) + "); à valider, sous réserve de monotonie."
+    for versions in groups.values():
+        floor = 0
+        for version in sorted(versions):
+            peers = versions[version]
+            overrides = {model["tier_override"] for model in peers if "tier_override" in model}
+            if len(overrides) > 1:
+                raise ValueError(f"tier_override contradictoires pour les variantes de {peers[0]['display_name']}.")
+            if overrides:
+                rank = LEVELS.index(next(iter(overrides)))
+                if rank < floor:
+                    raise ValueError(f"tier_override de {peers[0]['display_name']} viole la monotonie de sa lignée.")
+            else:
+                rank = max(floor, *(LEVELS.index(model["tier"]) for model in peers))
+            for model in peers:
+                if model["tier"] != LEVELS[rank]:
+                    model["tier_source"] = "lineage_override" if overrides else "monotonicity"
+                model["tier"] = LEVELS[rank]
+            floor = rank
 
 
 def dump_json(data: Any) -> str:

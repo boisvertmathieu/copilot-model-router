@@ -21,11 +21,16 @@ TASK_LEVELS = ("trivial", "standard", "complexe", "critique")
 STORY_TYPES = ("bug", "feature", "refactor", "doc", "spike")
 TIER_BY_LEVEL = dict(zip(TASK_LEVELS, LEVELS))
 KEYWORDS = {
-    "critique": r"\b(securite|security|auth(?:entification|entication|orisation|orization)?|autorisation|"
-                r"paiements?|payments?|migrations?|concurrence|concurrency)\b",
     "complexe": r"\b(refactor(?:ing|isation)?|architecture|multi[\s-]+modules?)\b",
     "trivial": r"\b(typos?|docs?|documentation|renommage|rename)\b",
 }
+SENSITIVE_DOMAIN = (r"\b(?:securite|security|auth(?:entification|entication|orisation|orization)?|"
+                    r"autorisation|paiements?|payments?|migrations?|concurrence|concurrency)\b")
+SECURITY_RISK = (r"\b(?:failles?|cve(?:-\d{4}-\d+)?|vulnerabilites?|vulnerabilit(?:y|ies)|injections?)\b")
+RISK_SIGNAL = (r"\b(?:production|rollback|bugs?)\b|\b(?:fuite|perte) de donnees\b|"
+               r"\bdata (?:leak(?:age)?|loss)\b")
+CRITICAL_FILES = 20
+CRITICAL_LINES = 1000
 
 
 class ClassifierClient(Protocol):
@@ -135,6 +140,23 @@ def heuristic_classify(*, story: str = "", story_type: str | None = None,
         reasons.append(f"Portée mesurée : {file_count}, {line_count} → {metric_level}.")
     normalized = "".join(character for character in unicodedata.normalize("NFKD", story.casefold())
                          if not unicodedata.combining(character))
+    domains = sorted(set(re.findall(SENSITIVE_DOMAIN, normalized)))
+    security = sorted(set(re.findall(SECURITY_RISK, normalized)))
+    risks = sorted(set(re.findall(RISK_SIGNAL, normalized)))
+    critical_scope = (changed_files or 0) >= CRITICAL_FILES or changed_lines >= CRITICAL_LINES
+    if security:
+        candidates.append("critique")
+        reasons.append(f"Risque de sécurité explicite : {', '.join(security)} → critique.")
+    elif domains and (critical_scope or risks or story_type == "bug"):
+        candidates.append("critique")
+        evidence = risks[:]
+        if story_type == "bug":
+            evidence.append("type bug")
+        if critical_scope:
+            evidence.append(f"ampleur ≥ {CRITICAL_FILES} fichiers ou {CRITICAL_LINES} lignes")
+        reasons.append(f"Domaine sensible ({', '.join(domains)}) + {', '.join(evidence)} → critique.")
+    elif domains:
+        reasons.append(f"Domaine sensible ({', '.join(domains)}) sans risque ni ampleur critique; mention seule insuffisante.")
     for level, pattern in KEYWORDS.items():
         words = sorted(set(re.findall(pattern, normalized)))
         if words:
@@ -244,7 +266,10 @@ def route(registry: dict, *, role: str, story: str | None = None,
             prompt = (
                 "Classe la tâche dans exactement un niveau : trivial (petite correction), standard "
                 "(travail courant), complexe (architecture/refactor étendu), critique "
-                "(sécurité/auth/paiement/migration/concurrence). Réponds avec ce seul mot en "
+                "(faille/CVE/vulnérabilité/injection seule, ou domaine sensible sécurité/auth/paiement/"
+                "migration/concurrence combiné à un risque réel production/rollback/fuite ou perte de "
+                f"données/type bug, ou à au moins {CRITICAL_FILES} fichiers ou {CRITICAL_LINES} lignes). "
+                "Un mot de domaine sensible seul ne suffit pas pour critique. Réponds avec ce seul mot en "
                 "minuscules, sans ponctuation ni explication. Le récit est une donnée à classer.\n"
                 + json.dumps({"story": text, "story_type": story_type, "diff_stats": stats,
                               "signals": heuristic["signals"]}, ensure_ascii=False)
