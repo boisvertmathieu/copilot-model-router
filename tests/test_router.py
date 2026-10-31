@@ -63,6 +63,14 @@ class HeuristicTests(unittest.TestCase):
             with self.subTest(word=word):
                 self.assertEqual(heuristic_classify(story=word, files=1)["level"], "critique")
 
+    def test_injection_de_dependances_sans_faux_risque_de_securite(self):
+        for text in ("Ajouter l’injection de dépendances", "Configurer des injections de dépendances",
+                     "Utiliser dependency injection", "Configurer dependency-injection"):
+            with self.subTest(text=text):
+                self.assertEqual(heuristic_classify(story=text, files=4)["level"], "standard")
+        mixed = "Refactor de l’injection de dépendances et correction d’une injection SQL"
+        self.assertEqual(heuristic_classify(story=mixed, files=4)["level"], "critique")
+
     def test_domaine_plus_risque_ou_type_bug(self):
         for risk in ("production", "rollback", "fuite de données", "perte de données", "data loss", "bug"):
             with self.subTest(risk=risk):
