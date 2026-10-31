@@ -191,17 +191,21 @@ class SyncTests(unittest.TestCase):
                 result = route(registry, role=role, dev_family="anthropic", story="CVE")
                 self.assertEqual(result["model"], "gpt-6-luna")
 
-    def test_unknown_org_model_without_cost_gets_provisional_tier(self):
+    def test_unknown_org_model_inherits_direct_predecessor_price_and_provisional_tier(self):
         from route import route
         entries = ["gpt-6-sol", {"id": "gpt-7-sol", "name": "GPT-7 Sol"}]
         registry, report = self.build(payload=entries)
         new = next(model for model in registry["models"] if model["id"] == "gpt-7-sol")
         self.assertTrue(new["tier_provisoire"])
         self.assertEqual(new["tier"], "frontier")
-        self.assertIsNone(new["cost_index"])
+        predecessor = next(model for model in registry["models"] if model["id"] == "gpt-6-sol")
+        self.assertEqual(new["cost_index"], predecessor["cost_index"])
+        self.assertTrue(new["prix_suppose"])
+        self.assertEqual(new["pricing_predecessor"], predecessor["id"])
         self.assertEqual(report["unmatched_cli"], [])
-        self.assertIn(new["id"], report["pricing_missing"])
-        self.assertEqual(route(registry, role="dev")["model"], "gpt-6-sol")
+        self.assertNotIn(new["id"], report["pricing_missing"])
+        self.assertIn(new["id"], report["pricing_assumed"])
+        self.assertEqual(route(registry, role="dev")["model"], "gpt-7-sol")
         entries[1]["cost_index"] = 40
         updated, _ = self.build(registry, payload=entries)
         self.assertEqual(route(updated, role="dev")["model"], "gpt-7-sol")
@@ -248,14 +252,19 @@ class SyncTests(unittest.TestCase):
     def test_prix_manquant_ne_devient_pas_zero(self):
         tables = copy.deepcopy(self.tables)
         tables["models-and-pricing.yml"][0]["input"] = None
-        with self.assertRaises(ValueError):
-            self.build(tables=tables)
+        registry, report = self.build(tables=tables)
+        missing = next(model for model in registry["models"]
+                       if model["display_name"] == tables["models-and-pricing.yml"][0]["model"])
+        self.assertIsNone(missing["cost_index"])
+        self.assertTrue(missing["pricing_missing"])
+        self.assertIn(missing["id"], report["pricing_missing"])
 
     def test_sync_locale_cli_et_parite_yaml_json(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "models.yaml"
             result = subprocess.run([sys.executable, str(ROOT / "scripts/sync_registry.py"),
-                                     "--upstream-dir", str(ROOT / "upstream"), "--registry", str(path), "--json"],
+                                     "--upstream-dir", str(ROOT / "upstream"), "--registry", str(path),
+                                     "--write-registry", "--json"],
                                     capture_output=True, text=True, cwd="/tmp")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(json.loads(result.stdout)["mode"], "local")

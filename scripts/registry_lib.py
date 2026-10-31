@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
@@ -79,8 +80,83 @@ def probable_id(name: str) -> str:
     return re.sub(r"[^a-z0-9.]+", "-", name).strip("-")
 
 
-def load_registry(path: Path) -> dict:
-    """Le JSON de secours doit correspondre exactement au YAML courant."""
+def local_registry_path(path: Path) -> Path:
+    return path.with_suffix(".local.json")
+
+
+def apply_registry_prices(models: list[dict], declared: list[dict]) -> None:
+    """Un prix explicite du registre de base prime sur le registre local."""
+    for model in models:
+        matches = matching_entries(model, declared)
+        if len(matches) != 1:
+            continue
+        source = matches[0]
+        if source.get("cost_index") is None or source.get("prix_suppose"):
+            continue
+        model["cost_index"] = source["cost_index"]
+        if "pricing" in source:
+            model["pricing"] = copy.deepcopy(source["pricing"])
+        model.update(pricing_missing=False, prix_suppose=False)
+        model.pop("pricing_predecessor", None)
+
+
+def resolve_model_prices(models: list[dict]) -> None:
+    """Hérite seulement de la génération immédiatement précédente de la lignée."""
+    groups = {}
+    for model in models:
+        if model.get("prix_suppose"):
+            model["cost_index"] = None
+            model.pop("pricing", None)
+            model.pop("pricing_predecessor", None)
+            model["prix_suppose"] = False
+        prices = model.get("pricing")
+        if (model.get("cost_index") is None and isinstance(prices, dict)
+                and all(prices.get(field) is not None for field in ("input", "cached_input", "output"))):
+            model["cost_index"] = reference_cost(model["pricing"])
+        model["pricing_missing"] = model.get("cost_index") is None
+        lineage = model_lineage(model["family"], model["display_name"])
+        if lineage:
+            groups.setdefault((model["family"], lineage[0]), {}).setdefault(lineage[1], []).append(model)
+    for versions in groups.values():
+        predecessors = []
+        for version in sorted(versions):
+            peers = versions[version]
+            for model in peers:
+                if not model["pricing_missing"] or not predecessors:
+                    continue
+                # Les variantes fast partagent une génération; préférer la même variante.
+                fast = "fast" in model["display_name"].casefold()
+                predecessor = min(predecessors, key=lambda item: (
+                    ("fast" in item["display_name"].casefold()) != fast, item["id"]))
+                if predecessor.get("cost_index") is None:
+                    continue
+                model.update(cost_index=predecessor["cost_index"], pricing_missing=False,
+                             prix_suppose=True, pricing_predecessor=predecessor["id"])
+                if "pricing" in predecessor:
+                    model["pricing"] = copy.deepcopy(predecessor["pricing"])
+            predecessors = peers
+
+
+def pricing_notice(model: dict) -> str:
+    if model.get("prix_suppose"):
+        return (f"Prix supposé pour {model['id']} : prix du prédécesseur direct "
+                f"{model['pricing_predecessor']} dans la même lignée ({model['cost_index']:g} crédits).")
+    return f"pricing_missing : {model['id']} exclu; ajouter son prix dans models.yaml."
+
+
+def load_registry(path: Path, *, use_local: bool = True) -> dict:
+    """Préfère le registre local; le JSON de secours doit correspondre au YAML."""
+    local = local_registry_path(path)
+    if use_local and not path.name.endswith(".local.json") and local.is_file():
+        data = load_registry(local, use_local=False)
+        if path.is_file():
+            base = load_registry(path, use_local=False)
+            for model in base["models"]:
+                if not any(matching_entries(local_model, [model]) for local_model in data["models"]):
+                    data["models"].append(copy.deepcopy(model))
+            apply_registry_prices(data["models"], base["models"])
+            resolve_model_prices(data["models"])
+        return data
     if path.suffix.lower() == ".json":
         data = json.loads(path.read_text(encoding="utf-8"))
     else:
@@ -114,9 +190,11 @@ def load_registry(path: Path) -> dict:
             raise ValueError(f"tier_override invalide pour {model['id']}.")
         if not isinstance(model.get("family"), str) or not model["family"]:
             raise ValueError(f"Famille manquante pour {model['id']}.")
-        if not (model.get("cost_index") is None and model.get("pricing_missing") is True):
-            decimal_number(model.get("cost_index"), f"Coût de {model['id']}")
         entry_selectable(model.get("runtime"))
+    resolve_model_prices(data["models"])
+    for model in data["models"]:
+        if model.get("cost_index") is not None:
+            decimal_number(model["cost_index"], f"Coût de {model['id']}")
     return data
 
 

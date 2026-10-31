@@ -18,7 +18,7 @@ from registry_lib import (
     ROOT, TABLE_FILES, TABLE_BASE, REFERENCE_TASK, ROLE_LEVELS,
     CAPABILITY_POLICY, assign_model_tiers, catalog_entries, clean_name, decimal_number, dump_json,
     entry_selectable, load_registry, matching_entries, model_lineage, name_key, probable_id,
-    reference_cost, write_atomic,
+    reference_cost, write_atomic, apply_registry_prices, local_registry_path, pricing_notice, resolve_model_prices,
 )
 
 
@@ -130,9 +130,10 @@ def build_registry(tables: dict, previous: dict | None, date: str,
             continue
         current_keys.add(key)
         model = copy.deepcopy(old.get(key, {}))
-        prices = {field: money(row[field]) for field in ("input", "output", "cached_input")}
+        prices = {field: money(row.get(field), optional=True) for field in ("input", "output", "cached_input")}
         prices["cache_write"] = money(row.get("cache_write"), optional=True)
-        cost = reference_cost(prices)
+        cost = (reference_cost(prices) if all(prices[field] is not None for field in ("input", "output", "cached_input"))
+                else model.get("cost_index") if not model.get("prix_suppose") else None)
         comparison = comparisons.get(key, {})
         model.setdefault("id", probable_id(name))
         model.setdefault("id_verified", False)
@@ -143,6 +144,7 @@ def build_registry(tables: dict, previous: dict | None, date: str,
             model["available"] = None
             model.pop("available_source", None)
             model.pop("retired_on", None)
+        model.pop("pricing_predecessor", None)
         model.update({
             "display_name": name, "family": row["provider"], "cli": True, "retired": False,
             "release_status": row["release_status"],
@@ -155,7 +157,8 @@ def build_registry(tables: dict, previous: dict | None, date: str,
                         "tier": "Default", "threshold": row.get("threshold", "Not applicable"),
                         **prices},
             "cost_index": cost,
-            "pricing_missing": False,
+            "pricing_missing": cost is None,
+            "prix_suppose": False,
             "legacy_multiplier": legacy.get(key),
             "capabilities": sorted(set(capabilities_from_comparison(comparison)
                                        + model.get("manual_capabilities", []))),
@@ -186,7 +189,7 @@ def build_registry(tables: dict, previous: dict | None, date: str,
             if any(matching_entries(model, [entry]) for model in models):
                 continue
             # Un ID arrivé avant la documentation reçoit tout de même un niveau.
-            # Aucun tarif n'est inventé : sans coût connu, il reste non sélectionnable.
+            # Le prix manquant sera résolu avec le prédécesseur direct, s'il existe.
             name = entry.get("name") or entry["id"]
             family = entry.get("family") or entry.get("provider")
             if not isinstance(family, str) or not family:
@@ -227,16 +230,19 @@ def build_registry(tables: dict, previous: dict | None, date: str,
                                          "catalog_source": cli_payload.get("source") if isinstance(cli_payload, dict) else None}
             if entry:
                 model.update(cli=True, retired=False)
-                if model.get("source", {}).get("mode") == "catalogue_importe":
+                if (model.get("source", {}).get("mode") == "catalogue_importe"
+                        and (model.get("cost_index") is None or model.get("prix_suppose"))):
                     if entry.get("cost_index") is not None:
                         model["cost_index"] = float(decimal_number(entry["cost_index"]))
+                        model["prix_suppose"] = False
+                        model.pop("pricing_predecessor", None)
                     elif isinstance(entry.get("pricing"), dict):
                         model["pricing"] = entry["pricing"]
                         model["cost_index"] = reference_cost(entry["pricing"])
+                        model["prix_suppose"] = False
+                        model.pop("pricing_predecessor", None)
                     model["pricing_missing"] = model.get("cost_index") is None
                 used.add(entry["id"])
-                if model.get("cost_index") is None:
-                    report["pricing_missing"].append(entry["id"])
                 if model["id"] != entry["id"]:
                     report["id_changes"].append({"old": model["id"], "new": entry["id"]})
                     model["aliases"] = sorted(set(model["aliases"] + [model["id"]]))
@@ -248,6 +254,11 @@ def build_registry(tables: dict, previous: dict | None, date: str,
                     "model_picker_enabled", "supportedReasoningEfforts", "defaultReasoningEffort",
                 ) if key in entry}
         report["unmatched_cli"] = sorted(entry["id"] for entry in entries if entry["id"] not in used)
+    resolve_model_prices(models)
+    report["pricing_missing"] = [model["id"] for model in models
+                                  if model.get("available") is not False and model["pricing_missing"]]
+    report["pricing_assumed"] = [model["id"] for model in models
+                                 if model.get("available") is not False and model.get("prix_suppose")]
     ids = [m["id"] for m in models]
     if len(ids) != len(set(ids)):
         raise ValueError("Le rapprochement produit des ID en double; corrigez les correspondances manuelles.")
@@ -257,7 +268,8 @@ def build_registry(tables: dict, previous: dict | None, date: str,
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--registry", type=Path, default=ROOT / "models.yaml", help="Registre YAML à mettre à jour.")
+    parser.add_argument("--registry", type=Path, default=ROOT / "models.yaml", help="Registre YAML de base; sortie locale .local.json par défaut.")
+    parser.add_argument("--write-registry", action="store_true", help="Remplacer explicitement le YAML de base et son JSON au lieu du registre local.")
     parser.add_argument("--upstream-dir", type=Path, help="Lire les quatre tables locales, sans réseau.")
     parser.add_argument("--snapshot-dir", type=Path, default=ROOT / "upstream", help="Copies des téléchargements officiels.")
     parser.add_argument("--from-cli-models", type=Path, help="Catalogue JSON réel de models.list ou de l'API.")
@@ -281,29 +293,42 @@ def main(argv=None) -> int:
                     raise ValueError(f"Table officielle anormalement volumineuse : {filename}.")
                 contents[filename] = data.decode("utf-8")
         tables = load_tables(contents)
-        previous = load_registry(args.registry) if args.registry.exists() else None
+        previous = load_registry(args.registry) if args.registry.exists() or local_registry_path(args.registry).exists() else None
         cli_payload = json.loads(args.from_cli_models.read_text(encoding="utf-8")) if args.from_cli_models else None
         now = datetime.now(timezone.utc)
         registry, report = build_registry(tables, previous, now.date().isoformat(), cli_payload,
                                            mode="local" if args.upstream_dir else "network")
+        if args.registry.exists():
+            base = load_registry(args.registry, use_local=False)
+            apply_registry_prices(registry["models"], base["models"])
+            resolve_model_prices(registry["models"])
+        report["pricing_missing"] = [model["id"] for model in registry["models"]
+                                      if model.get("available") is not False and model["pricing_missing"]]
+        report["pricing_assumed"] = [model["id"] for model in registry["models"]
+                                     if model.get("available") is not False and model.get("prix_suppose")]
         registry["sync"] = {
             "checked_at": now.isoformat(),
             "mode": "local" if args.upstream_dir else "network",
             "files": {name: {"url": TABLE_BASE + name, "sha256": hashlib.sha256(text.encode()).hexdigest()}
                       for name, text in contents.items()},
         }
-        import yaml
-        yaml_text = "# Registre généré; réglages manuels : voir docs/router.md.\n" + yaml.safe_dump(
-            registry, allow_unicode=True, sort_keys=False, width=110)
-        json_registry = {**registry, "_yaml_sha256": hashlib.sha256(yaml_text.encode()).hexdigest()}
-        json_text = dump_json(json_registry)
         # Tous les téléchargements et rapprochements sont validés avant la première écriture.
-        write_atomic(args.registry, yaml_text)
-        write_atomic(args.registry.with_suffix(".json"), json_text)
-        if not args.upstream_dir:
+        if args.write_registry:
+            import yaml
+            yaml_text = "# Registre généré; réglages manuels : voir docs/router.md.\n" + yaml.safe_dump(
+                registry, allow_unicode=True, sort_keys=False, width=110)
+            json_registry = {**registry, "_yaml_sha256": hashlib.sha256(yaml_text.encode()).hexdigest()}
+            write_atomic(args.registry, yaml_text)
+            write_atomic(args.registry.with_suffix(".json"), dump_json(json_registry))
+        else:
+            write_atomic(local_registry_path(args.registry), dump_json(registry))
+        if args.write_registry and not args.upstream_dir:
             for filename, content in contents.items():
                 write_atomic(args.snapshot_dir / filename, content)
         report.update(models=len(registry["models"]), mode=registry["sync"]["mode"], checked_at=now.isoformat())
+        for model in registry["models"]:
+            if model.get("available") is not False and (model.get("prix_suppose") or model.get("pricing_missing")):
+                print(f"Avertissement : {pricing_notice(model)}", file=sys.stderr)
         if args.json:
             print(dump_json(report), end="")
         else:
@@ -313,6 +338,7 @@ def main(argv=None) -> int:
                                ("excluded_non_cli", "Exclus, sans support CLI documenté"),
                                ("unmatched_cli", "ID importés sans correspondance unique"),
                                ("pricing_missing", "ID importés sans coût connu, exclus du routage"),
+                               ("pricing_assumed", "ID au prix supposé du prédécesseur direct"),
                                ("ambiguous_cli", "Correspondances ambiguës")):
                 print(f"{label} : {', '.join(report[key]) or 'aucun'}.")
             if report["id_changes"]:

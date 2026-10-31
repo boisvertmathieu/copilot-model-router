@@ -17,8 +17,17 @@ uv run python scripts/list_copilot_models.py --output copilot-models.local.json
 uv run python scripts/sync_registry.py --from-cli-models copilot-models.local.json
 ```
 
-The local catalog is gitignored. Sync uses public GitHub docs for metadata; the org catalog wins
-on availability and CLI support. Refresh before a new session or after org model changes.
+The catalog and the generated `models.local.json` registry are gitignored. Sync writes this local
+registry by default, leaving tracked `models.yaml` and `models.json` unchanged. The router and eval
+prefer the sibling `.local.json` registry when present, including with `--registry PATH`.
+`eval/run_eval.py --refresh` follows the same rule, even when Copilot discovery is unavailable.
+Remove `models.local.json` to return to the bundled registry. Maintainers can explicitly request
+`sync_registry.py --write-registry` to regenerate the tracked YAML/JSON and documentation snapshots.
+
+Sync uses public GitHub docs for metadata; the org catalog wins on availability and CLI support.
+An explicit `--available` overrides stale saved availability with the stderr warning
+`registre périmé, relancer la sync`. IDs absent from the registry still need sync before selection.
+Refresh before a new session or after org model changes.
 `--available live` fetches the current catalog on each routing call, but new models still need sync
 for their metadata. No additional service or API key is required.
 
@@ -46,8 +55,12 @@ uv run python scripts/route.py --role ROLE --story "TASK" --available copilot-mo
 
 Roles: dev, test, doc, e2e-validator, reviewer, planner. Call separately for every sub-agent;
 do not reuse a previous task's choice. Use --story @FILE for longer tasks. Pass --files,
---diff-stats, and --story-type when known. Add --classifier llm to request one economy-model
-classification; --timeout defaults to 30 seconds. Heuristic fallback is a successful decision.
+--diff-stats, and --story-type when known. PANE must be a positive integer. NAME must have 1 to 64
+letters, digits, dots, underscores or hyphens, with no initial hyphen.
+Add --classifier llm to request one economy-model classification. If none is available, the
+cheapest available admissible model classifies the task and a stderr warning identifies it.
+Classification has no tools; --timeout defaults to 30 seconds and kills the whole process group.
+Heuristic fallback after a failed classification is a successful decision.
 Pass the task budget using either --max-cost or --budget-profile, when one is provided.
 
 Save the actual dev model returned in the JSON. For BOTH e2e-validator and reviewer, pass
@@ -92,3 +105,10 @@ routing call with `--role reviewer`, a new name and an existing independent pane
 `e2e-validator`. The independence check is by provider, so another model from the same provider
 will be rejected. [Selection details](router.md) explain budgets, tiers and provisional models;
 [the eval guide](../eval/README.md) covers the final local and live checks.
+
+A model without a known price inherits its direct predecessor's price within the same lineage.
+The decision includes `prix_suppose: true`, a reason and a stderr warning. Without a known
+predecessor price it is excluded with `pricing_missing`; add its price in `models.yaml`.
+An explicit price in `models.yaml` takes priority over the local registry and inherited prices.
+Role bounds remain absolute: doc cannot exceed standard, even for a cheaper successor. A target
+tier is a preference: test may use an equally cheap premium successor in the same lineage.

@@ -5,6 +5,8 @@ Use `uv run python scripts/route.py --role ROLE --story TEXT --available FILE --
 `--files N`, `--diff-stats TEXT|FILE|@FILE`, `--pane PANE` (default `1`) and `--name NAME` (defaults to the role).
 Roles are `dev`, `test`, `doc`, `e2e-validator`, `reviewer`, `planner`.
 The router never launches Herdr. Each invocation reads the registry anew.
+Panes must be positive integers. Names match `[A-Za-z0-9._-]{1,64}` and cannot start with a hyphen.
+Invalid panes or names return exit 1 with a JSON error.
 
 ## Task classification
 
@@ -23,16 +25,24 @@ is insufficient. Dependency injection alone is a design pattern, not a security 
 Scope is trivial below 3 files/100 changed lines, standard below 10 files/500 lines, otherwise complex.
 Critical scope means at least 20 files or 1,000 changed lines, combined with a sensitive domain.
 `--diff-stats` accepts short summaries (`14 files, 620 insertions`), full `git diff --stat` output,
-and singular summaries (`1 file changed`). Insertions plus deletions give changed lines. When file
-counts disagree, the larger count wins. Unreadable statistics produce a stderr warning and are ignored.
+French summaries (`12 fichiers modifiés, 340 insertions`) and singular summaries (`1 file changed`).
+Insertions plus deletions give changed lines. When file counts disagree, the larger count wins.
+Partial parsing, negative counts clamped to zero and conflicting file counts produce stderr warnings.
+Unreadable statistics produce a stderr warning and are ignored.
 
 `--classifier llm` selects an available economy-tier model, then makes exactly one non-interactive
-`copilot --model ID -p PROMPT --allow-all-tools` call with closed stdin. There are no retries.
-`--timeout SECONDS` defaults to 30 and must be positive and finite. The prompt includes the task,
+`copilot --model ID -p PROMPT` call with closed stdin and all built-in tools excluded. The shared
+classifier/judge helper also denies `shell`, `write`, `read`, `url`, `memory`, and passes
+`--no-ask-user --disable-builtin-mcps --no-custom-instructions -s`, following the
+[Copilot CLI reference](https://docs.github.com/en/copilot/reference/cli-command-reference).
+There are no retries. If no economy model is available, the cheapest available admissible model
+classifies the task, with a stderr warning.
+`--timeout SECONDS` defaults to 30, must be positive and finite, and kills the entire inference
+process group on expiry. The prompt includes the task,
 role, budget and compact available model entries (`id`, `family`, `tier`, `cost`). The response must
 be one strict JSON object with `level`, a nonempty `reason`, and optionally `preferred_model`.
 Unknown fields, duplicate keys, surrounding prose, invalid types and unknown levels are rejected.
-A missing economy model, timeout, CLI failure or malformed response triggers a stderr warning,
+A timeout, CLI failure or malformed response triggers a stderr warning,
 heuristic classification and `decision_source: "heuristic"`. A successful final selection still exits 0.
 A valid response sets `decision_source: "llm"`; Python vets any suggested model before honoring it.
 
@@ -75,6 +85,8 @@ prohibited, over budget or outside a role bound, it cannot disqualify an otherwi
 An empty list permits no model. It replaces the registry's saved availability and runtime policy.
 Matching uses canonical ID, aliases, then an unambiguous display name. The returned ID is always
 in the supplied catalog; canonical restrictions cannot be bypassed by an alias.
+Overriding a saved unavailable status warns `registre périmé, relancer la sync` on stderr.
+An ID absent from the registry remains non-admissible and requires sync.
 Without `--available`, the saved snapshot applies; `available: null` means unverified and warns.
 The bundled registry has unverified account availability. Use a current org catalog for launches.
 
@@ -83,7 +95,7 @@ four public GitHub documentation tables and imports the org catalog. Org presenc
 docs' `cli` support flag. Documented models absent from the org are unavailable. Model listing
 uses Copilot's `models.list`; its offline built-in catalog is rejected as proof of account access.
 For an offline refresh, add `--upstream-dir upstream`. `scripts/refresh.sh` attempts the account
-catalog and then syncs; if discovery fails it warns and refreshes documentation only, retaining
+catalog and then syncs; if discovery fails it warns and refreshes metadata only, retaining
 the previous availability snapshot. A failed discovery does not verify current access.
 
 All models receive tiers automatically from the existing metadata score. Category bases are
@@ -96,16 +108,23 @@ These are metadata estimates, not benchmark results.
 Missing comparison/lineage metadata sets `tier_provisoire: true`, with a warning on selection.
 An org-only new generation uses its lineage's category (otherwise a conservative Lightweight base),
 then the same scoring and monotonicity rules. Org-only models can supply `cost_index` in reference
-credits, or `pricing` with USD/million-token `input`, `cached_input`, `output`. Costs are never copied
-from an older model or assumed zero. A missing cost is recorded as `pricing_missing: true` and
-excluded from routing until a cost is known; sync reports these IDs in `pricing_missing`, separately
-from ambiguous/unmatched catalog entries. A fully priced newer generation
+credits, or `pricing` with USD/million-token `input`, `cached_input`, `output`. A missing price inherits
+the price of the direct predecessor in the same provider and lineage, even if that predecessor is
+currently unavailable. The decision sets `prix_suppose: true`, identifies `pricing_predecessor`,
+and warns on stderr and in `reasons`. It never skips a generation to find a cheaper price or uses
+another lineage. If no predecessor price can be resolved, `pricing_missing` excludes the model and
+asks for its price in `models.yaml`. An explicit base-registry price always wins, including over
+the local overlay and catalog pricing. A newer generation
 that dominates its predecessor is selected automatically, even with a provisional tier.
 
 Sync preserves `id`, aliases, notes, `tier_override`, `manual_capabilities`, role defaults and budget
 profiles. Use `tier_override`, not the derived `tier`, for a manual adjustment; conflicting overrides
-across variants or generations fail before writing. Removed models remain archived. Sync writes
-YAML and matching JSON with a YAML hash; the JSON fallback refuses a stale hash if PyYAML is absent.
+across variants or generations fail before writing. Removed models remain archived. Sync normally
+writes the gitignored sibling `models.local.json`; router and eval read it first. Neither a catalog
+import nor `eval/run_eval.py --refresh` changes tracked registries or upstream snapshots by default.
+Remove the local file to use the bundled registry. `--write-registry` explicitly regenerates the
+base YAML and matching JSON with a YAML hash, plus snapshots for a network refresh.
+The JSON fallback refuses a stale hash if PyYAML is absent.
 PyYAML is installed by `uv sync`.
 
 ## Cost and output

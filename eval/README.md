@@ -24,7 +24,10 @@ uv run python eval/run_eval.py --refresh --available live
 uv run python eval/run_eval.py --available live --judge --copilot --judge-model gpt-6-luna
 ```
 
-`--refresh` explicitly updates the registry and upstream snapshots before the live run. Live
+`--refresh` updates the gitignored `models.local.json` registry before the live run; tracked
+`models.yaml`, `models.json` and upstream snapshots remain unchanged. Router and eval prefer this
+local registry when present. Use `sync_registry.py --write-registry` only to explicitly regenerate
+the tracked registry and snapshots. Live
 availability restricts every scenario; scenarios that add fictitious models are skipped in this mode.
 Insufficient model coverage can cause scenario failures. New org IDs without a tier or missing active
 registry models fail the drift check; refresh the catalog and inspect its metadata. Without live

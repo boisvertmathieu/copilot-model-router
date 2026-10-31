@@ -21,6 +21,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+from copilot_cli import run_copilot  # noqa: E402
 from registry_lib import (  # noqa: E402
     LEVELS, ROLES, TABLE_FILES, catalog_entries, decimal_number, dump_json,
     entry_selectable, load_registry, matching_entries, model_lineage,
@@ -379,8 +380,7 @@ class CopilotJudge:
             + dump_json({"case": case, "decision": decision})
         )
         try:
-            result = subprocess.run([self.cli, "--model", self.model, "-p", prompt, "--allow-all-tools"],
-                                    stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=self.timeout)
+            result = run_copilot(self.model, prompt, cli=self.cli, timeout=self.timeout)
         except subprocess.TimeoutExpired as exc:
             raise JudgeError(f"Délai du juge dépassé ({self.timeout:g} s).") from exc
         except OSError as exc:

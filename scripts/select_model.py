@@ -12,6 +12,7 @@ from pathlib import Path
 from registry_lib import (
     ROOT, LEVELS, ROLES, ROLE_LEVELS, decimal_number, dump_json,
     catalog_entries, dominates, entry_selectable, load_registry, matching_entries, model_lineage, read_available,
+    pricing_notice, resolve_model_prices,
 )
 
 
@@ -58,6 +59,7 @@ def best_model(models: list[dict]) -> dict:
 def catalog_models(registry: dict, available: list[dict] | None) -> tuple[list[dict], list[str]]:
     """Le catalogue fourni remplace le constat précédent et le support CLI documenté."""
     models = copy.deepcopy(registry["models"])
+    resolve_model_prices(models)
     warnings = []
     if available is not None:
         available = catalog_entries(available)
@@ -65,18 +67,22 @@ def catalog_models(registry: dict, available: list[dict] | None) -> tuple[list[d
         for model in models:
             matches = matching_entries(model, available)
             entry = matches[0] if len(matches) == 1 else None
+            was_unavailable = (model.get("available") is False or not model.get("cli")
+                               or model.get("retired") or not entry_selectable(model.get("runtime")))
             model["available"] = bool(entry and entry_selectable(entry))
             if len(matches) > 1:
                 warnings.append(f"Correspondance ambiguë exclue : {model['display_name']}.")
             if entry:
                 known.add(entry["id"])
+                if entry_selectable(entry) and was_unavailable:
+                    warnings.append(f"{entry['id']} : registre périmé, relancer la sync; --available fait foi.")
                 if entry["id"] != model["id"]:
                     model["aliases"] = sorted(set(model.get("aliases", []) + [model["id"]]))
                     model["id"] = entry["id"]
                 model.update(id_verified=True, cli=True, retired=False, runtime=entry)
         unknown = sorted(entry["id"] for entry in available if entry["id"] not in known)
         if unknown:
-            warnings.append("ID sans métadonnées associées, exclus; lancer sync_registry : " + ", ".join(unknown) + ".")
+            warnings.append("ID absents du registre, non admissibles; lancer sync_registry : " + ", ".join(unknown) + ".")
     for model in models:
         entry_selectable(model.get("runtime"))
         model["runtime"] = model.get("runtime") or {}
@@ -147,7 +153,12 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
     if min_level and max_level and rank[min_level] > rank[max_level]:
         raise SelectionError("Le niveau minimal dépasse le niveau maximal.")
     models, warnings = catalog_models(registry, available)
+    missing_prices = [pricing_notice(model) for model in models
+                      if model.get("pricing_missing") and model.get("available") is not False]
+    warnings += missing_prices
     family = resolve_dev_family(models, role, dev_family, dev_model)
+    # Bornes absolues du rôle : un successeur doit passer ces filtres avant
+    # de pouvoir dépasser la simple préférence de niveau « wanted ».
     eligible = [model for model in models
                 if model_available(model, allow_preview)
                 and (min_level is None or rank[model["tier"]] >= rank[min_level])
@@ -157,9 +168,10 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
         if not eligible:
             raise SelectionError(
                 f"Aucun modèle CLI admissible d'une famille différente de {family}. "
-                "La contrainte de famille ne peut pas être relâchée.", 3)
+                "La contrainte de famille ne peut pas être relâchée. " + " ".join(warnings), 3)
     if not eligible:
-        raise SelectionError("Aucun modèle CLI admissible dans la disponibilité fournie et le statut permis.")
+        raise SelectionError("Aucun modèle CLI admissible dans la disponibilité fournie et le statut permis. "
+                             + " ".join(warnings))
     if cap is not None:
         eligible = [model for model in eligible if decimal_number(model["cost_index"]) <= cap]
         if not eligible:
@@ -214,7 +226,11 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
     lineage_upgrade = any(dominates(chosen, older) for older in target_pool)
     if suggested and model_available(suggested, allow_preview):
         lineage_upgrade = lineage_upgrade or dominates(chosen, suggested)
-    reasons = [f"Rôle {role}, niveau souhaité {wanted}; niveau retenu {chosen['tier']}."]
+    reasons = [f"Rôle {role}, niveau souhaité {wanted}; niveau retenu {chosen['tier']}.", *missing_prices]
+    if chosen.get("prix_suppose"):
+        notice = pricing_notice(chosen)
+        reasons.append(notice)
+        warnings.append(notice)
     if preferred_model != chosen["id"]:
         reasons.append("Choix Python par préférence de niveau et succession de lignée, puis coût minimal; "
                        "à coût égal : score de capacité, génération récente, puis ID.")
@@ -255,6 +271,8 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
         "tier": chosen["tier"], "requested_level": wanted, "role": role,
         "level": wanted, "decision_source": "heuristic",
         "tier_provisoire": bool(chosen.get("tier_provisoire")),
+        "prix_suppose": bool(chosen.get("prix_suppose")),
+        "pricing_predecessor": chosen.get("pricing_predecessor"),
         "cost_index": chosen["cost_index"], "max_cost": float(cap) if cap is not None else None,
         "budget_profile": budget_profile, "dev_family": family,
         "id_verified": chosen.get("id_verified", False), "available": chosen.get("available"),

@@ -7,7 +7,7 @@ uv sync
 uv run python scripts/route.py --role dev --story "Add a filter" --available gpt-6-luna,claude-sonnet-5.5 --pane 2 --json
 ```
 
-The example uses a simulated catalog. For real launches, pass your org catalog with `--available FILE` or `--available live`. Add `--classifier llm` for one economy-model Copilot classification call (30-second timeout, heuristic fallback).
+The example uses a simulated catalog. For real launches, pass your org catalog with `--available FILE` or `--available live`. Add `--classifier llm` for one Copilot classification call using an economy model, or the cheapest available model if none is economy (30-second timeout, heuristic fallback).
 
 stdout always contains one JSON object, including errors (`error`, `hint`, `exit_code`, `decision_source: null`). Warnings go to stderr. Success includes `model`, `tier`, `level`, `reasons`, `decision_source` and `herdr_command` with `--pane` (default `1`).
 

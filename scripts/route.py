@@ -13,9 +13,10 @@ import unicodedata
 from pathlib import Path
 from typing import Protocol
 
+from copilot_cli import run_copilot
 from registry_lib import ROOT, LEVELS, ROLES, catalog_entries, dump_json, load_registry, read_available
 from select_model import (
-    JsonArgumentParser, SelectionError, catalog_models, error_payload, model_available, select_model,
+    JsonArgumentParser, SelectionError, best_model, catalog_models, error_payload, model_available, select_model,
 )
 
 TASK_LEVELS = ("trivial", "standard", "complexe", "critique")
@@ -92,8 +93,7 @@ class CopilotCliClient:
         self.timeout = valid_timeout(timeout)
 
     def classify(self, prompt: str) -> str:
-        result = subprocess.run([self.cli, "--model", self.model, "-p", prompt, "--allow-all-tools"],
-                                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=self.timeout)
+        result = run_copilot(self.model, prompt, cli=self.cli, timeout=self.timeout)
         if result.returncode:
             # Ne pas inclure le prompt ni les journaux potentiellement sensibles.
             raise ValueError(f"Copilot CLI a quitté avec le code {result.returncode}.")
@@ -139,21 +139,36 @@ def heuristic_classify(*, story: str = "", story_type: str | None = None,
     changed_files = files
     insertions = deletions = 0
     if diff_stats is not None:
-        patterns = (r"\b(\d+)\s+files?\b(?:\s+changed\b)?", r"\b(\d+)\s+insertions?\b(?:\(\+\))?",
-                    r"\b(\d+)\s+deletions?\b(?:\(-\))?")
+        number = r"(?<![\w.+-])([+-]?\d+)\s+"
+        patterns = (number + r"(?:files?|fichiers?)\b(?:\s+(?:changed|modifiés?)\b)?",
+                    number + r"insertions?\b(?:\(\+\))?",
+                    number + r"(?:deletions?|suppressions?)\b(?:\(-\))?")
         try:
-            matches = [re.search(pattern, diff_stats) for pattern in patterns]
+            matches = [re.search(pattern, diff_stats, re.IGNORECASE) for pattern in patterns]
             if not any(matches):
                 raise ValueError("Aucune statistique reconnue.")
-            diff_files = int(matches[0][1]) if matches[0] else None
-            insertions, deletions = [int(match[1]) if match else 0 for match in matches[1:]]
+            counts = [int(match[1]) if match else 0 for match in matches]
+            for index, count in enumerate(counts):
+                if count < 0:
+                    warnings.append(f"Valeur de diff corrigée : {count} → 0 ({('fichiers', 'insertions', 'suppressions')[index]}).")
+                    counts[index] = 0
+            diff_files = counts[0] if matches[0] else None
+            insertions, deletions = counts[1:]
         except (TypeError, ValueError):
             warnings.append("Statistiques de diff illisibles; information ignorée.")
             diff_stats = None
         else:
+            # Les lignes par fichier de git diff --stat ne sont pas des résumés.
+            remainder = re.sub(r"(?m)^.*\|.*$", "", diff_stats)
+            for pattern in patterns:
+                remainder = re.sub(pattern, "", remainder, flags=re.IGNORECASE)
+            if matches[0] is None or remainder.strip(" \t\r\n,;"):
+                warnings.append("Statistiques de diff partiellement lues; seules les valeurs reconnues sont utilisées.")
             changed_files = max((count for count in (files, diff_files) if count is not None), default=None)
             if files is not None and matches[0] and files != diff_files:
-                reasons.append(f"Comptes de fichiers différents; maximum retenu : {changed_files}.")
+                notice = f"Comptes de fichiers différents; maximum retenu : {changed_files}."
+                reasons.append(notice)
+                warnings.append(notice)
     changed_lines = insertions + deletions
     has_metrics = files is not None or diff_stats is not None
     if has_metrics:
@@ -269,11 +284,12 @@ def route(registry: dict, *, role: str, story: str | None = None,
                          ("dev_model", dev_model), ("dev_family", dev_family)):
         if value is not None and (not isinstance(value, str) or not value.strip() or "\0" in value):
             raise ValueError(f"{label} doit être du texte non vide.")
-    if name is not None and name.startswith("-"):
-        raise ValueError("Le nom d'agent ne peut pas commencer par un tiret.")
-    if pane is not None and (type(pane) not in (str, int) or not str(pane).strip()
-                             or "\0" in str(pane) or str(pane).startswith("-")):
-        raise ValueError("Le panneau doit être un identifiant non vide ou un entier positif ou nul.")
+    if name is not None and (not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", name) or name.startswith("-")):
+        raise ValueError("Le nom d'agent doit contenir 1 à 64 caractères A-Z, a-z, 0-9, point, tiret ou soulignement, sans tiret initial.")
+    if pane is not None:
+        if type(pane) not in (str, int) or not re.fullmatch(r"[0-9]+", str(pane)) or int(pane) <= 0:
+            raise ValueError("Le panneau doit être un entier strictement positif.")
+        pane = int(pane)
     if max_cost is not None and budget_profile is not None:
         raise ValueError("Choisir --max-cost ou --budget-profile, un seul à la fois.")
     timeout = valid_timeout(timeout)
@@ -285,7 +301,7 @@ def route(registry: dict, *, role: str, story: str | None = None,
         stats = None
         warnings.append("Statistiques de diff illisibles; information ignorée.")
     heuristic = heuristic_classify(story=text, story_type=story_type, files=files, diff_stats=stats)
-    if heuristic["warnings"]:
+    if heuristic["signals"].get("changed_lines") is None:
         stats = None
     catalog = available_models(available, cli=copilot_cli, timeout=timeout)
     level = heuristic["level"]
@@ -296,14 +312,18 @@ def route(registry: dict, *, role: str, story: str | None = None,
     preferred_model = None
     if classifier == "llm":
         try:
-            economy = select_model(registry, role="doc", level="economy", max_level="economy",
-                                   available=catalog, allow_preview=allow_preview)
-            classifier_model = economy["id"]
+            models, _ = catalog_models(registry, catalog)
+            usable = [model for model in models if model_available(model, allow_preview)]
+            economy = [model for model in usable if model["tier"] == "economy"]
+            classification_model = best_model(economy or usable)
+            classifier_model = classification_model["id"]
+            if not economy:
+                warnings.append("Aucun modèle economy disponible; classification avec le modèle disponible "
+                                f"le moins cher : {classifier_model}.")
             if client is None:
                 client = CopilotCliClient(classifier_model, cli=copilot_cli, timeout=timeout)
-            if economy["tier_provisoire"]:
-                warnings.append("Le modèle de classification a un niveau economy provisoire, à valider.")
-            models, _ = catalog_models(registry, catalog)
+            if classification_model.get("tier_provisoire"):
+                warnings.append(f"Le modèle de classification a un niveau {classification_model['tier']} provisoire, à valider.")
             prompt = (
                 "Classe la tâche dans exactement un niveau : trivial (petite correction), standard "
                 "(travail courant), complexe (architecture/refactor étendu), critique "
@@ -379,8 +399,8 @@ def main(argv=None) -> int:
     parser.add_argument("--dev-family", help="Fournisseur du dev, requis pour validation/revue si son ID est inconnu.")
     parser.add_argument("--available", help="Catalogue, @fichier, liste d'ID ou live.")
     parser.add_argument("--allow-preview", action="store_true", help="Permettre les modèles en aperçu.")
-    parser.add_argument("--pane", help="Identifiant du panneau Herdr (1 par défaut).")
-    parser.add_argument("--name", help="Nom de l'agent Herdr; rôle par défaut.")
+    parser.add_argument("--pane", help="Numéro de panneau Herdr strictement positif (1 par défaut).")
+    parser.add_argument("--name", help="Nom Herdr : 1 à 64 lettres/chiffres/._-, sans tiret initial; rôle par défaut.")
     parser.add_argument("--copilot-cli", default="copilot", help="Exécutable pour la classification LLM et le catalogue live.")
     parser.add_argument("--timeout", type=float, default=30, help="Délai Copilot par opération, en secondes.")
     parser.add_argument("--json", action="store_true", help="Compatibilité : la sortie est toujours un objet JSON.")

@@ -193,10 +193,10 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, 2)
 
     def test_herdr_cmd_quoting_et_options(self):
-        name = "dev de l'équipe; echo 'test'"
+        name = "dev-filter_1.2"
         before = copy.deepcopy(self.registry)
-        result = route(self.registry, role="dev", name=name, pane="%3")
-        expected = ["herdr", "agent", "start", name, "--kind", "copilot", "--pane", "%3",
+        result = route(self.registry, role="dev", name=name, pane="3")
+        expected = ["herdr", "agent", "start", name, "--kind", "copilot", "--pane", "3",
                     "--", "--model", result["model"]]
         self.assertEqual(shlex.split(result["herdr_cmd"]), expected)
         self.assertEqual(result["herdr_argv"], expected)
@@ -227,32 +227,26 @@ class RouterTests(unittest.TestCase):
 
     def test_adaptateur_choisit_economy_et_passe_des_arguments(self):
         completed = subprocess.CompletedProcess([], 0, '{"level":"complexe","reason":"Portée étendue."}\n', "")
-        with patch("route.subprocess.run", return_value=completed) as run:
+        with patch("route.run_copilot", return_value=completed) as run:
             result = route(self.registry, role="dev", classifier="llm", copilot_cli="copilot-simule", timeout=2)
         self.assertEqual(result["classifier_model"], "autre-economy")
         self.assertEqual(result["tier"], "premium")
         args, kwargs = run.call_args
         run.assert_called_once()
-        self.assertEqual(args[0][:4], ["copilot-simule", "--model", "autre-economy", "-p"])
+        self.assertEqual(args[0], "autre-economy")
         self.assertEqual(kwargs["timeout"], 2)
-        self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
-        self.assertIn("--allow-all-tools", args[0])
-        self.assertNotIn("shell", kwargs)
+        self.assertEqual(kwargs["cli"], "copilot-simule")
 
-    def test_adaptateur_refus_delai_cli_absent_et_aucun_economy(self):
+    def test_adaptateur_refus_delai_et_cli_absent(self):
         failures = [FileNotFoundError(), subprocess.TimeoutExpired("copilot", 1)]
         for failure in failures:
-            with patch("route.subprocess.run", side_effect=failure):
+            with patch("route.run_copilot", side_effect=failure):
                 result = route(self.registry, role="dev", story="architecture", classifier="llm")
             self.assertEqual(result["classification"], "heuristic")
         for code, output in ((1, "complexe"), (0, "Voici : complexe")):
-            with patch("route.subprocess.run", return_value=subprocess.CompletedProcess([], code, output, "")):
+            with patch("route.run_copilot", return_value=subprocess.CompletedProcess([], code, output, "")):
                 result = route(self.registry, role="dev", story="architecture", classifier="llm")
             self.assertEqual(result["classification"], "heuristic")
-        with patch("route.subprocess.run") as run:
-            result = route(self.registry, role="dev", classifier="llm", available="autre-premium")
-        run.assert_not_called()
-        self.assertEqual(result["classification"], "heuristic")
 
     def test_tier_provisoire_accepte_et_signale(self):
         self.registry["models"][3]["tier_provisoire"] = True
