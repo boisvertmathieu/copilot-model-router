@@ -133,14 +133,15 @@ class SyncTests(unittest.TestCase):
         self.assertFalse(any(model.get("tier_provisoire") for model in updated["models"]))
         self.assertEqual(report["provisional"], [])
 
-    def test_tiers_provisoires_deduits_des_categories_et_prix(self):
+    def test_tiers_deduits_des_metadonnees_suffisantes(self):
         registry, _ = self.build()
         models = {model["id"]: model for model in registry["models"]}
         for identifier, tier in (("claude-haiku-5.5", "economy"), ("claude-sonnet-5.5", "standard"),
                                  ("gemini-4-argon", "premium"), ("claude-opus-5", "frontier")):
             with self.subTest(identifier=identifier):
                 self.assertEqual(models[identifier]["tier"], tier)
-                self.assertTrue(models[identifier]["tier_provisoire"])
+                self.assertFalse(models[identifier]["tier_provisoire"])
+                self.assertIn("score", models[identifier]["capability"])
 
     def test_import_cli_reel_politique_et_id_corrige(self):
         payload = {"source": "models.list", "models": [

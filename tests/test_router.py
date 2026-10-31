@@ -44,18 +44,49 @@ class HeuristicTests(unittest.TestCase):
         cases = [({"story": "Corriger une typo dans la doc", "files": 1}, "trivial"),
                  ({"story": "Ajouter un filtre", "story_type": "feature"}, "standard"),
                  ({"story": "Refactor multi-modules", "files": 12}, "complexe"),
-                 ({"story": "Réparer la sécurité de l'auth"}, "critique")]
+                 ({"story": "Corriger une faille dans l'auth"}, "critique")]
         for params, expected in cases:
             with self.subTest(params=params):
                 result = heuristic_classify(**params)
                 self.assertEqual(result["level"], expected)
                 self.assertTrue(result["reasons"])
 
-    def test_mots_critiques_et_accents(self):
+    def test_domaines_sensibles_seuls_insuffisants_et_accents(self):
         for word in ("SÉCURITÉ", "auth", "authentification", "autorisation", "paiement", "migration", "concurrence"):
             with self.subTest(word=word):
-                self.assertEqual(heuristic_classify(story=f"Typo dans la doc {word}", files=1)["level"], "critique")
+                self.assertEqual(heuristic_classify(story=f"Typo dans la doc {word}", files=1)["level"], "trivial")
+                self.assertEqual(heuristic_classify(story=word)["level"], "standard")
         self.assertEqual(heuristic_classify(story="Redessiner la mise en page")["level"], "standard")
+
+    def test_vrais_signaux_de_securite_critiques_seuls(self):
+        for word in ("faille", "CVE-2026-12345", "VULNÉRABILITÉ", "vulnérabilités", "injection SQL", "vulnerability"):
+            with self.subTest(word=word):
+                self.assertEqual(heuristic_classify(story=word, files=1)["level"], "critique")
+
+    def test_domaine_plus_risque_ou_type_bug(self):
+        for risk in ("production", "rollback", "fuite de données", "perte de données", "data loss", "bug"):
+            with self.subTest(risk=risk):
+                self.assertEqual(heuristic_classify(story=f"paiement {risk}")["level"], "critique")
+                self.assertNotEqual(heuristic_classify(story=risk)["level"], "critique")
+        self.assertEqual(heuristic_classify(story="auth", story_type="bug")["level"], "critique")
+        self.assertEqual(heuristic_classify(story="auth", story_type="feature")["level"], "standard")
+        self.assertEqual(heuristic_classify(story_type="bug")["level"], "standard")
+
+    def test_seuils_critiques_combines_au_domaine(self):
+        for files, expected in ((19, "complexe"), (20, "critique")):
+            with self.subTest(files=files):
+                self.assertEqual(heuristic_classify(story="migration", files=files)["level"], expected)
+        for lines, expected in ((999, "complexe"), (1000, "critique")):
+            with self.subTest(lines=lines):
+                self.assertEqual(heuristic_classify(story="paiement", diff_stats=f"{lines} deletions(-)")["level"], expected)
+        self.assertEqual(heuristic_classify(story="Ajouter un filtre", files=20)["level"], "complexe")
+
+    def test_refactor_paiement_du_brief_reste_complexe(self):
+        for stats in (None, "14 files changed, 620 insertions(+), 210 deletions(-)"):
+            with self.subTest(stats=stats):
+                result = heuristic_classify(story="refactor paiement", diff_stats=stats)
+                self.assertEqual(result["level"], "complexe")
+                self.assertIn("mention seule insuffisante", " ".join(result["reasons"]))
 
     def test_seuils_de_portee(self):
         for files, expected in ((0, "trivial"), (2, "trivial"), (3, "standard"), (9, "standard"), (10, "complexe")):
@@ -111,7 +142,7 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(result["tier"], "standard")
 
     def test_doc_plafonnee_meme_en_repli(self):
-        result = route(self.registry, role="doc", story="Doc de sécurité")
+        result = route(self.registry, role="doc", story="Doc de vulnérabilité de sécurité")
         self.assertEqual((result["level"], result["tier"]), ("critique", "standard"))
         with self.assertRaises(SelectionError):
             route(self.registry, role="doc", available="autre-frontier")
@@ -164,7 +195,7 @@ class RouterTests(unittest.TestCase):
         clients += [FakeClient(value) for value in ("", "Critique", "complexe. conseil", '"complexe"', "standard\ntrivial", None)]
         for client in clients:
             with self.subTest(response=client.response):
-                result = route(self.registry, role="dev", story="migration", classifier="llm", client=client)
+                result = route(self.registry, role="dev", story="migration en production", classifier="llm", client=client)
                 self.assertEqual((result["level"], result["classification"]), ("critique", "heuristic"))
                 self.assertIn("repli heuristique", " ".join(result["warnings"]))
 
