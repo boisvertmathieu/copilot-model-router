@@ -1,0 +1,55 @@
+{
+  "verified_at": "2026-10-31T00:30:12.004727+00:00",
+  "python_version": "3.13.5",
+  "unittest": {
+    "command": "python3 -m unittest discover -s tests -v",
+    "tests": 47,
+    "result": "réussite",
+    "elapsed_seconds": 1.476,
+    "network_used": false
+  },
+  "sync": {
+    "command": "python3 scripts/sync_registry.py --json",
+    "report": {
+      "new": [],
+      "removed": [],
+      "excluded_non_cli": [
+        "GPT-5.4 nano",
+        "GPT-6.1 Sol",
+        "Claude Sonnet 4"
+      ],
+      "unmatched_cli": [],
+      "ambiguous_cli": [],
+      "id_changes": [],
+      "models": 26,
+      "mode": "network",
+      "checked_at": "2026-10-31T00:30:11.929207+00:00"
+    },
+    "source_hashes_unchanged": true
+  },
+  "registry": {
+    "active_models": 26,
+    "ids_known_to_cli_1_0_105": 25,
+    "unverified_ids": [
+      "gpt-6.1-terra"
+    ],
+    "account_availability": "non vérifiée"
+  },
+  "fallback_without_pyyaml": {
+    "command": "python3 -S scripts/select_model.py --role doc --max-cost 5 --json",
+    "id": "claude-haiku-5.5",
+    "cost_index": 2.1,
+    "result": "réussite"
+  },
+  "additional_checks": [
+    "Liens locaux des documents présents.",
+    "Exemples Python des documents analysés avec ast.parse.",
+    "Sonde HTTP locale réussie avec réponses simulées et faux jeton."
+  ],
+  "not_performed": [
+    "Aucun catalogue de compte réel obtenu de l’API Copilot.",
+    "Aucune inférence Copilot.",
+    "Aucun lancement Herdr.",
+    "Aucun commit ou push."
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "source": "simulation_http_locale",
+  "observed_at": "2026-10-31T00:23:52.918117+00:00",
+  "cli_version": "1.0.105",
+  "protocol_version": 3,
+  "response_is_synthetic": true,
+  "rpc_model_count": 2,
+  "note": "Faux jeton et réponses simulées. Aucun catalogue de compte Copilot réel ni inférence.",
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/copilot_internal/user",
+      "headers": {
+        "accept": "application/json",
+        "authorization": "Bearer <jeton-factice>",
+        "user-agent": "copilot/1.0.105 (linux v24.22.1) term/unknown",
+        "accept-encoding": "zstd,gzip,deflate,br",
+        "host": "<valeur-locale-omise>"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/models",
+      "headers": {
+        "content-type": "application/json",
+        "x-github-api-version": "2026-08-01",
+        "x-interaction-id": "<valeur-locale-omise>",
+        "authorization": "Bearer <jeton-factice>",
+        "x-client-machine-id": "<valeur-locale-omise>",
+        "copilot-integration-id": "copilot-sdk",
+        "openai-intent": "conversation-agent",
+        "editor-version": "copilot/1.0.105",
+        "x-initiator": "user",
+        "user-agent": "copilot/1.0.105 (linux v24.22.1) term/unknown",
+        "accept": "application/json",
+        "copilot-harness-id": "copilot-sdk",
+        "accept-encoding": "zstd,gzip,deflate,br",
+        "host": "<valeur-locale-omise>"
+      }
+    }
+  ]
+}

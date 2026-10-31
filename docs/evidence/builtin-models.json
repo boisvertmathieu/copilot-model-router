@@ -1,0 +1,214 @@
+{
+  "source": "models.getBuiltInCatalog",
+  "fetched_at": "2026-10-31T00:19:47.314278+00:00",
+  "protocol_version": 3,
+  "models": [
+    {
+      "id": "claude-sonnet-5.5"
+    },
+    {
+      "id": "claude-sonnet-5"
+    },
+    {
+      "id": "claude-fable-5.1"
+    },
+    {
+      "id": "claude-fable-5"
+    },
+    {
+      "id": "claude-opus-5.5"
+    },
+    {
+      "id": "claude-opus-5"
+    },
+    {
+      "id": "claude-opus-4.8"
+    },
+    {
+      "id": "claude-opus-4.8-fast"
+    },
+    {
+      "id": "claude-sonnet-4.6"
+    },
+    {
+      "id": "claude-haiku-5.5"
+    },
+    {
+      "id": "claude-haiku-4.5"
+    },
+    {
+      "id": "gpt-6.1-sol"
+    },
+    {
+      "id": "gpt-6-sol"
+    },
+    {
+      "id": "gpt-6-luna"
+    },
+    {
+      "id": "gpt-6-astra"
+    },
+    {
+      "id": "gpt-5.6-sol"
+    },
+    {
+      "id": "gpt-5.6-sol-fast"
+    },
+    {
+      "id": "gpt-5.6-terra"
+    },
+    {
+      "id": "gpt-5.6-luna"
+    },
+    {
+      "id": "gpt-5.5"
+    },
+    {
+      "id": "gpt-5.4"
+    },
+    {
+      "id": "gpt-5.4-mini"
+    },
+    {
+      "id": "gpt-5.3-codex"
+    },
+    {
+      "id": "gpt-5-mini"
+    },
+    {
+      "id": "mai-code-1.1-flash"
+    },
+    {
+      "id": "gemini-4-argon"
+    },
+    {
+      "id": "gemini-3.8-flash"
+    },
+    {
+      "id": "gemini-3.7-flash"
+    },
+    {
+      "id": "grok-4.7"
+    },
+    {
+      "id": "grok-4.6"
+    },
+    {
+      "id": "grok-4.5"
+    },
+    {
+      "id": "kimi-k3"
+    },
+    {
+      "id": "claude-opus-4.5"
+    },
+    {
+      "id": "claude-opus-4.6"
+    },
+    {
+      "id": "claude-opus-4.7"
+    },
+    {
+      "id": "claude-sonnet-4"
+    },
+    {
+      "id": "claude-sonnet-4.5"
+    },
+    {
+      "id": "gemini-2.5-pro"
+    },
+    {
+      "id": "gemini-3.1-pro-preview"
+    },
+    {
+      "id": "gemini-3.5-flash"
+    },
+    {
+      "id": "gemini-3.6-flash"
+    },
+    {
+      "id": "gpt-4.1"
+    },
+    {
+      "id": "gpt-4.1-2025-04-14"
+    },
+    {
+      "id": "gpt-4o"
+    },
+    {
+      "id": "gpt-5.1"
+    },
+    {
+      "id": "gpt-5.2"
+    },
+    {
+      "id": "gpt-5.2-codex"
+    },
+    {
+      "id": "gpt-5.4-nano"
+    },
+    {
+      "id": "kimi-k2.7-code"
+    },
+    {
+      "id": "mai-code-1-flash-4th"
+    },
+    {
+      "id": "mai-code-1-flash-4th-picker"
+    },
+    {
+      "id": "mai-code-1-flash-picker"
+    },
+    {
+      "id": "mai-code-1-flash-secondary"
+    },
+    {
+      "id": "mai-code-1-flash-secondary-picker"
+    },
+    {
+      "id": "mai-code-1-flash-tertiary"
+    },
+    {
+      "id": "mai-code-1-flash-tertiary-picker"
+    },
+    {
+      "id": "mai-code-2"
+    },
+    {
+      "id": "mai-code-2-flash"
+    },
+    {
+      "id": "claude-opus-4.6-fast"
+    },
+    {
+      "id": "gpt-5"
+    },
+    {
+      "id": "gpt-5-codex"
+    },
+    {
+      "id": "gpt-5.1-codex"
+    },
+    {
+      "id": "gpt-5.1-codex-max"
+    },
+    {
+      "id": "gpt-5.1-codex-mini"
+    },
+    {
+      "id": "gemini-3-pro-preview"
+    },
+    {
+      "id": "gpt-41-copilot"
+    },
+    {
+      "id": "grok-code-fast-1"
+    },
+    {
+      "id": "gpt-4o-mini"
+    }
+  ],
+  "cli_version": "1.0.105",
+  "package": "@github/copilot-linux-x64@1.0.105",
+  "note": "Catalogue intégré lu localement avec --no-auto-login. Aucune preuve d'accès Copilot ou de disponibilité du compte."
+}

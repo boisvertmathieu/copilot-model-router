@@ -1,0 +1,37 @@
+{
+  "date_locale": "2026-10-30 UTC",
+  "sdk": {
+    "repository": "https://github.com/github/copilot-sdk",
+    "commit": "e22b95e6ead5e1de7e9a68d3087b8d28dc5f364a"
+  },
+  "vscode_copilot_chat": {
+    "repository": "https://github.com/microsoft/vscode-copilot-chat",
+    "commit": "5863f5a7088958050792b5dccbe8b46c6e13eccc"
+  },
+  "npm": {
+    "github-copilot-1.0.105.tgz": {
+      "sha256": "fa380c181df70d4b83b55e723fc8c3ae819b30f0bb26d52b158eb679ffd32785",
+      "sha1": "8c289febd92d44901a68a6684bc752c356f738ec"
+    },
+    "github-copilot-linux-x64-1.0.105.tgz": {
+      "sha256": "aa65846d4c0c6b83e8eb0726fef3de5f38a13b3f17bffeb7674882e79f4ec2d3",
+      "sha1": "43322d0817b8564afcfe00f3929c00b033bca116"
+    },
+    "vscode-copilot-api-0.2.19.tgz": {
+      "sha256": "8b96d8da5349db6d2ebfe37c01a6f721c2d48f5e9be31c79c02af41a0f0294dc",
+      "sha1": "982239437e69083d112b498fda287c7bd796fd60"
+    }
+  },
+  "observations": [
+    "Les quatre tables téléchargées du réseau étaient identiques aux fichiers upstream fournis.",
+    "CLI --version et --help exécutés localement; protocole JSON-RPC 3 confirmé avec connect.",
+    "models.getBuiltInCatalog exécuté avec --no-auto-login : 68 identifiants intégrés, sans preuve de licence.",
+    "Essai local de models.list sans licence Copilot : liste vide; aucune réponse HTTP /models inspectée et aucune inférence exécutée.",
+    "Le CLI 1.0.105 a été observé contre un serveur HTTP local avec un jeton factice : GET /models, Bearer direct, intégration copilot-sdk, API 2026-08-01. Le routage du compte et l'acceptation par le service réel restent à vérifier."
+  ],
+  "preuves_locales": {
+    "catalogue_integre": "docs/evidence/builtin-models.json",
+    "transport_simule": "docs/evidence/local-http.json",
+    "sonde_reproductible": "docs/evidence/probe_local_http.py"
+  }
+}
