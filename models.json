@@ -72,7 +72,7 @@
     {
       "id": "claude-fable-5",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Fable 5",
@@ -134,7 +134,7 @@
     {
       "id": "claude-fable-5.1",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Fable 5.1",
@@ -196,7 +196,7 @@
     {
       "id": "claude-haiku-4.5",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Haiku 4.5",
@@ -255,7 +255,7 @@
     {
       "id": "claude-haiku-5.5",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Haiku 5.5",
@@ -318,7 +318,7 @@
     {
       "id": "claude-opus-4.8",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Opus 4.8",
@@ -377,7 +377,7 @@
     {
       "id": "claude-opus-4.8-fast",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Opus 4.8 (fast mode) (preview)",
@@ -436,7 +436,7 @@
     {
       "id": "claude-opus-5",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Opus 5",
@@ -495,7 +495,7 @@
     {
       "id": "claude-opus-5.5",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Opus 5.5",
@@ -556,7 +556,7 @@
     {
       "id": "claude-sonnet-4.6",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Sonnet 4.6",
@@ -616,7 +616,7 @@
     {
       "id": "claude-sonnet-5",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Sonnet 5",
@@ -676,7 +676,7 @@
     {
       "id": "claude-sonnet-5.5",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Claude Sonnet 5.5",
@@ -734,7 +734,7 @@
     {
       "id": "gemini-3.8-flash",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Gemini 3.8 Flash",
@@ -793,7 +793,7 @@
     {
       "id": "gemini-4-argon",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Gemini 4 Argon",
@@ -854,7 +854,7 @@
     {
       "id": "mai-code-1.1-flash",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "MAI-Code-1.1-Flash",
@@ -914,7 +914,7 @@
     {
       "id": "kimi-k3",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Kimi K3",
@@ -974,7 +974,7 @@
     {
       "id": "gpt-5.3-codex",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "GPT-5.3-Codex",
@@ -1032,7 +1032,7 @@
     {
       "id": "gpt-5.6-luna",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "GPT-5.6 Luna",
@@ -1096,7 +1096,7 @@
     {
       "id": "gpt-5.6-sol",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "GPT-5.6 Sol",
@@ -1163,7 +1163,7 @@
     {
       "id": "gpt-5.6-terra",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "GPT-5.6 Terra",
@@ -1226,7 +1226,7 @@
     {
       "id": "gpt-6-astra",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "GPT-6 Astra",
@@ -1291,7 +1291,7 @@
     {
       "id": "gpt-6-luna",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "GPT-6 Luna",
@@ -1355,7 +1355,7 @@
     {
       "id": "gpt-6-sol",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "GPT-6 Sol",
@@ -1482,7 +1482,7 @@
     {
       "id": "grok-4.5",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Grok 4.5",
@@ -1547,7 +1547,7 @@
     {
       "id": "grok-4.6",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Grok 4.6",
@@ -1612,7 +1612,7 @@
     {
       "id": "grok-4.7",
       "id_verified": true,
-      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog); accès au compte non vérifié.",
       "aliases": [],
       "available": null,
       "display_name": "Grok 4.7",
@@ -1698,5 +1698,5 @@
       }
     }
   },
-  "_yaml_sha256": "fbd80816f597b457b0dfea8a5497c6c6cd7caea05c450cf5cd28ab9f8146e412"
+  "_yaml_sha256": "e1b6dda1acc8dd114b21084cc301f01ce4b8cfee2098772b4f3c8e7235fe962e"
 }

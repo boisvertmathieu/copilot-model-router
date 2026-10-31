@@ -159,7 +159,8 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(models["gpt-6-sol"]["family"], "openai")
         self.assertFalse(models["grok-4.7"]["available"])
         self.assertFalse(models["claude-opus-5"]["available"])
-        self.assertEqual(report["unmatched_cli"], ["sans-tarif"])
+        self.assertEqual(report["unmatched_cli"], [])
+        self.assertEqual(report["pricing_missing"], ["sans-tarif"])
 
     def test_import_ambigu_exclu(self):
         registry, report = self.build(payload=[{"id": "kimi-a", "name": "Kimi K3"},
@@ -167,6 +168,64 @@ class SyncTests(unittest.TestCase):
         kimi = next(model for model in registry["models"] if model["id"] == "kimi-k3")
         self.assertFalse(kimi["available"])
         self.assertEqual(report["ambiguous_cli"], ["Kimi K3"])
+
+    def test_org_catalog_overrides_documented_cli_support(self):
+        from route import route
+        for entry in ("gpt-6.1-sol", "gpt-5.4-nano", {"id": "org-sol", "name": "GPT-6.1 Sol"}):
+            with self.subTest(entry=entry):
+                registry, report = self.build(payload=[entry])
+                identifier = entry if isinstance(entry, str) else entry["id"]
+                selected = next(model for model in registry["models"] if model["id"] == identifier)
+                self.assertTrue(selected["cli"])
+                self.assertTrue(selected["available"])
+                self.assertNotIn(selected["display_name"], report["excluded_non_cli"])
+                self.assertNotIn(identifier, report["unmatched_cli"])
+                self.assertEqual(route(registry, role="dev")["model"], identifier)
+                self.assertEqual(route(registry, role="dev", available=[entry])["model"], identifier)
+
+    def test_documented_models_absent_from_org_are_never_chosen(self):
+        from route import route
+        registry, _ = self.build(payload=["gpt-6-luna"])
+        for role in ("dev", "test", "doc", "planner", "reviewer"):
+            with self.subTest(role=role):
+                result = route(registry, role=role, dev_family="anthropic", story="CVE")
+                self.assertEqual(result["model"], "gpt-6-luna")
+
+    def test_unknown_org_model_without_cost_gets_provisional_tier(self):
+        from route import route
+        entries = ["gpt-6-sol", {"id": "gpt-7-sol", "name": "GPT-7 Sol"}]
+        registry, report = self.build(payload=entries)
+        new = next(model for model in registry["models"] if model["id"] == "gpt-7-sol")
+        self.assertTrue(new["tier_provisoire"])
+        self.assertEqual(new["tier"], "frontier")
+        self.assertIsNone(new["cost_index"])
+        self.assertEqual(report["unmatched_cli"], [])
+        self.assertIn(new["id"], report["pricing_missing"])
+        self.assertEqual(route(registry, role="dev")["model"], "gpt-6-sol")
+        entries[1]["cost_index"] = 40
+        updated, _ = self.build(registry, payload=entries)
+        self.assertEqual(route(updated, role="dev")["model"], "gpt-7-sol")
+
+    def test_org_only_models_added_with_provisional_tiers_and_known_costs(self):
+        from route import route
+        entries = ["grok-4.7", "claude-opus-5.5",
+                   {"id": "grok-4.8", "cost_index": 37},
+                   {"id": "claude-opus-6", "cost_index": 80}]
+        registry = None
+        for _ in range(2):
+            registry, report = self.build(registry, payload=entries)
+            models = {model["id"]: model for model in registry["models"]}
+            self.assertEqual(report["unmatched_cli"], [])
+            self.assertEqual(report["pricing_missing"], [])
+            for identifier, tier in (("grok-4.8", "premium"), ("claude-opus-6", "frontier")):
+                with self.subTest(identifier=identifier):
+                    self.assertTrue(models[identifier]["cli"])
+                    self.assertTrue(models[identifier]["available"])
+                    self.assertTrue(models[identifier]["tier_provisoire"])
+                    self.assertEqual(models[identifier]["tier"], tier)
+            self.assertEqual(route(registry, role="dev", available="grok-4.7,grok-4.8")["model"], "grok-4.8")
+            self.assertEqual(route(registry, role="planner", available="claude-opus-5.5,claude-opus-6")["model"],
+                             "claude-opus-6")
 
     def test_catalogues_invalides_et_integres_refuses(self):
         for payload in ({"error": "Non authentifié"}, {"source": "models.getBuiltInCatalog", "models": []},

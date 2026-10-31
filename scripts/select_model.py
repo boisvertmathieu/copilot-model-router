@@ -11,7 +11,7 @@ from pathlib import Path
 
 from registry_lib import (
     ROOT, LEVELS, ROLES, ROLE_LEVELS, decimal_number, dump_json,
-    entry_selectable, load_registry, matching_entries, read_available,
+    catalog_entries, dominates, entry_selectable, load_registry, matching_entries, model_lineage, read_available,
 )
 
 
@@ -21,6 +21,75 @@ class SelectionError(Exception):
     def __init__(self, message: str, code: int = 1):
         super().__init__(message)
         self.code = code
+
+
+class JsonArgumentParser(argparse.ArgumentParser):
+    def error(self, message):
+        raise ValueError(message)
+
+    def print_help(self, file=None):
+        print(dump_json({"help": self.format_help()}), end="", file=file)
+
+
+def error_payload(exc: Exception) -> dict:
+    code = exc.code if isinstance(exc, SelectionError) else 1
+    hints = {
+        1: "Vérifier les arguments (--help), les fichiers et le registre.",
+        2: "Augmenter le budget ou fournir un catalogue avec un modèle admissible moins cher.",
+        3: "Fournir --dev-model (ou --dev-family) et un modèle disponible d'une autre famille.",
+        4: "Vérifier Copilot CLI, copilot login, la licence et le catalogue de l'organisation.",
+        5: "Utiliser un rôle connu : " + ", ".join(ROLES) + ".",
+    }
+    return {"error": str(exc), "hint": hints[code], "exit_code": code, "decision_source": None}
+
+
+def best_model(models: list[dict]) -> dict:
+    """Coût minimal, puis capacité et génération décroissantes; ID en dernier."""
+    def priority(model):
+        lineage = model_lineage(model["family"], model["display_name"])
+        return (-decimal_number(model["cost_index"]),
+                decimal_number(model.get("capability", {}).get("score", 0)),
+                lineage[1] if lineage else ())
+
+    # Le tri stable garde l'ID croissant seulement si tous les signaux sont égaux.
+    return max(sorted(models, key=lambda model: model["id"]), key=priority)
+
+
+def catalog_models(registry: dict, available: list[dict] | None) -> tuple[list[dict], list[str]]:
+    """Le catalogue fourni remplace le constat précédent et le support CLI documenté."""
+    models = copy.deepcopy(registry["models"])
+    warnings = []
+    if available is not None:
+        available = catalog_entries(available)
+        known = set()
+        for model in models:
+            matches = matching_entries(model, available)
+            entry = matches[0] if len(matches) == 1 else None
+            model["available"] = bool(entry and entry_selectable(entry))
+            if len(matches) > 1:
+                warnings.append(f"Correspondance ambiguë exclue : {model['display_name']}.")
+            if entry:
+                known.add(entry["id"])
+                if entry["id"] != model["id"]:
+                    model["aliases"] = sorted(set(model.get("aliases", []) + [model["id"]]))
+                    model["id"] = entry["id"]
+                model.update(id_verified=True, cli=True, retired=False, runtime=entry)
+        unknown = sorted(entry["id"] for entry in available if entry["id"] not in known)
+        if unknown:
+            warnings.append("ID sans métadonnées associées, exclus; lancer sync_registry : " + ", ".join(unknown) + ".")
+    for model in models:
+        entry_selectable(model.get("runtime"))
+        model["runtime"] = model.get("runtime") or {}
+    return models, warnings
+
+
+def model_available(model: dict, allow_preview: bool) -> bool:
+    return (model.get("cli") is True and not model.get("retired")
+            and model.get("cost_index") is not None and model["family"] != "unknown"
+            and model.get("available") is not False
+            and entry_selectable(model["runtime"])
+            and (allow_preview or (model.get("release_status") == "GA"
+                 and not model.get("preview") and not model["runtime"].get("preview"))))
 
 
 def resolve_dev_family(models: list[dict], role: str,
@@ -50,14 +119,14 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
                  dev_family: str | None = None, dev_model: str | None = None,
                  available: list[dict] | None = None, allow_preview=False,
                  preferred_level: str | None = None, min_level: str | None = None,
-                 max_level: str | None = None) -> dict:
+                 max_level: str | None = None, preferred_model: str | None = None) -> dict:
     """L'API permet au routeur de fournir sa préférence et ses bornes par rôle.
 
     Les trois modes publics restent exclusifs. preferred_level remplace seulement
     la préférence des défauts/profils; le plafond financier reste intact.
     """
     if role not in ROLES:
-        raise SelectionError(f"Rôle inconnu : {role}.")
+        raise SelectionError(f"Rôle inconnu : {role}.", 5)
     if sum(value is not None for value in (level, max_cost, budget_profile)) > 1:
         raise SelectionError("Choisissez un seul mode : --level, --max-cost ou --budget-profile.")
     wanted = level or registry.get("role_defaults", {}).get(role, ROLE_LEVELS[role])
@@ -77,36 +146,12 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
         raise SelectionError("Borne de niveau invalide.")
     if min_level and max_level and rank[min_level] > rank[max_level]:
         raise SelectionError("Le niveau minimal dépasse le niveau maximal.")
-    models = copy.deepcopy(registry["models"])
-    warnings = []
-    # Un catalogue récent fourni à cette invocation remplace l'ancien constat disponible.
-    if available is not None:
-        known = set()
-        for model in models:
-            matches = matching_entries(model, available)
-            entry = matches[0] if len(matches) == 1 else None
-            model["available"] = bool(entry and entry_selectable(entry))
-            if len(matches) > 1:
-                warnings.append(f"Correspondance ambiguë exclue : {model['display_name']}.")
-            if entry:
-                known.add(entry["id"])
-                if entry["id"] != model["id"]:
-                    model["aliases"] = list(set(model.get("aliases", []) + [model["id"]]))
-                    model["id"] = entry["id"]
-                model["id_verified"] = True
-                model["runtime"] = entry
-        unknown = sorted(entry["id"] for entry in available if entry["id"] not in known)
-        if unknown:
-            warnings.append("ID sans tarif CLI associé, exclus : " + ", ".join(unknown) + ".")
+    models, warnings = catalog_models(registry, available)
     family = resolve_dev_family(models, role, dev_family, dev_model)
     eligible = [model for model in models
-                if model.get("cli") is True and not model.get("retired")
-                and model.get("available") is not False
+                if model_available(model, allow_preview)
                 and (min_level is None or rank[model["tier"]] >= rank[min_level])
-                and (max_level is None or rank[model["tier"]] <= rank[max_level])
-                and entry_selectable(model.get("runtime", {}))
-                and (allow_preview or (model.get("release_status") == "GA"
-                     and not model.get("preview") and not model.get("runtime", {}).get("preview")))]
+                and (max_level is None or rank[model["tier"]] <= rank[max_level])]
     if family:
         eligible = [model for model in eligible if model["family"] != family]
         if not eligible:
@@ -122,21 +167,66 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
                 f"Aucun modèle admissible ne respecte le plafond de {cap} crédits par tâche de référence. "
                 "Le budget ne peut pas être dépassé.", 2)
     within_level = [model for model in eligible if rank[model["tier"]] <= rank[wanted]]
-    fallback = "none"
     if within_level:
         chosen_rank = max(rank[model["tier"]] for model in within_level)
-        pool = [model for model in within_level if rank[model["tier"]] == chosen_rank]
-        if chosen_rank < rank[wanted]:
-            fallback = "lower_tier"
     else:
         # Seule la préférence de niveau est souple; les filtres de coût et de famille restent en place.
         chosen_rank = min(rank[model["tier"]] for model in eligible)
-        pool = [model for model in eligible if rank[model["tier"]] == chosen_rank]
-        fallback = "relaxed_level"
-    chosen = min(pool, key=lambda model: (decimal_number(model["cost_index"]), model["id"]))
-    reasons = [f"Rôle {role}, niveau souhaité {wanted}; niveau retenu {chosen['tier']}, "
-               "puis coût minimal dans ce niveau (égalité tranchée par ID)."]
-    if fallback == "lower_tier":
+    target_pool = [model for model in eligible if rank[model["tier"]] == chosen_rank]
+    dominated = {model["id"] for model in eligible
+                 if any(dominates(other, model) for other in eligible)}
+    survivors = [model for model in eligible if model["id"] not in dominated]
+    # Seuls les successeurs de ces candidats peuvent dépasser le niveau visé.
+    # Un autre modèle premium ne remplace pas un standard d'une lignée différente.
+    pool = [model for model in survivors if model in target_pool
+            or any(dominates(model, older) for older in target_pool)]
+    chosen = best_model(pool)
+    suggestion_reason = None
+    suggested = None
+    if preferred_model is not None:
+        suggested = next((model for model in models if model["id"] == preferred_model), None)
+        valid = next((model for model in eligible if model["id"] == preferred_model), None)
+        above_ceiling = bool(valid and rank[valid["tier"]] > rank[wanted] and valid not in pool)
+        if above_ceiling:
+            valid = None
+        if valid:
+            successors = [model for model in survivors if dominates(model, valid)]
+            chosen = best_model(successors) if successors else valid
+            suggestion_reason = (
+                f"Suggestion LLM {preferred_model} écartée : génération dominée; successeur {chosen['id']} retenu."
+                if successors else f"Suggestion LLM {preferred_model} validée par les contraintes Python.")
+        else:
+            if suggested is None:
+                rejection = "hors catalogue"
+            elif not model_available(suggested, allow_preview):
+                rejection = "indisponible ou statut interdit"
+            elif family and suggested["family"] == family:
+                rejection = "même famille que le dev"
+            elif cap is not None and decimal_number(suggested["cost_index"]) > cap:
+                rejection = "budget dépassé"
+            elif above_ceiling:
+                rejection = "plafond de niveau dépassé sans succession dans la même lignée"
+            else:
+                rejection = "hors bornes du rôle"
+            suggestion_reason = f"Suggestion LLM {preferred_model} écartée : {rejection}; choix Python valide."
+    fallback = ("lower_tier" if rank[chosen["tier"]] < rank[wanted] else
+                "relaxed_level" if rank[chosen["tier"]] > rank[wanted] else "none")
+    lineage_upgrade = any(dominates(chosen, older) for older in target_pool)
+    if suggested and model_available(suggested, allow_preview):
+        lineage_upgrade = lineage_upgrade or dominates(chosen, suggested)
+    reasons = [f"Rôle {role}, niveau souhaité {wanted}; niveau retenu {chosen['tier']}."]
+    if preferred_model != chosen["id"]:
+        reasons.append("Choix Python par préférence de niveau et succession de lignée, puis coût minimal; "
+                       "à coût égal : score de capacité, génération récente, puis ID.")
+    if suggestion_reason:
+        reasons.append(suggestion_reason)
+    if dominated:
+        reasons.append("Générations dominées exclues : " + ", ".join(sorted(dominated)) + ".")
+    if lineage_upgrade:
+        reasons.append("Successeur de même lignée prioritaire : niveau au moins égal, coût égal ou inférieur.")
+    elif preferred_model == chosen["id"] and fallback != "none":
+        reasons.append("Préférence de niveau ajustée pour la suggestion LLM validée.")
+    elif fallback == "lower_tier":
         reasons.append("Repli vers un niveau inférieur : aucun candidat admissible au niveau souhaité.")
     elif fallback == "relaxed_level":
         reasons.append("Préférence de niveau relâchée : aucun candidat admissible au niveau souhaité ou plus bas.")
@@ -158,24 +248,25 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
         warnings.append("Identifiant CLI supposé; le confirmer avec models.list avant de lancer Herdr.")
     if chosen.get("preview") or chosen.get("runtime", {}).get("preview") or chosen.get("release_status") != "GA":
         warnings.append("Modèle en aperçu autorisé explicitement par --allow-preview.")
-    command = ["herdr", "agent", "start", role, "--kind", "copilot", "--pane", "<pane>",
+    command = ["herdr", "agent", "start", role, "--kind", "copilot", "--pane", "1",
                "--", "--model", chosen["id"]]
     return {
-        "id": chosen["id"], "display_name": chosen["display_name"], "family": chosen["family"],
+        "id": chosen["id"], "model": chosen["id"], "display_name": chosen["display_name"], "family": chosen["family"],
         "tier": chosen["tier"], "requested_level": wanted, "role": role,
+        "level": wanted, "decision_source": "heuristic",
         "tier_provisoire": bool(chosen.get("tier_provisoire")),
         "cost_index": chosen["cost_index"], "max_cost": float(cap) if cap is not None else None,
         "budget_profile": budget_profile, "dev_family": family,
         "id_verified": chosen.get("id_verified", False), "available": chosen.get("available"),
-        "reason": " ".join(reasons), "fallback": fallback, "warnings": warnings,
+        "reason": " ".join(reasons), "reasons": reasons, "fallback": fallback, "warnings": warnings,
         "herdr_command": shlex.join(command), "herdr_argv": command,
     }
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = JsonArgumentParser(description=__doc__)
     parser.add_argument("--registry", type=Path, default=ROOT / "models.yaml", help="Registre YAML ou JSON.")
-    parser.add_argument("--role", choices=ROLES, required=True, help="Rôle de l'équipier.")
+    parser.add_argument("--role", required=True, help="Rôle de l'équipier : " + ", ".join(ROLES) + ".")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--level", choices=LEVELS, help="Préférence de niveau.")
     mode.add_argument("--max-cost", help="Plafond de crédits par tâche de référence.")
@@ -184,29 +275,22 @@ def main(argv=None) -> int:
     parser.add_argument("--dev-model", help="Identifiant connu du modèle du dev; permet d'en déduire la famille.")
     parser.add_argument("--available", help="Fichier JSON/texte ou liste d'ID séparés par virgule.")
     parser.add_argument("--allow-preview", action="store_true", help="Permettre les modèles en aperçu.")
-    parser.add_argument("--json", action="store_true", help="Sortie JSON destinée à l'orchestrateur.")
-    args = parser.parse_args(argv)
+    parser.add_argument("--json", action="store_true", help="Compatibilité : la sortie est toujours un objet JSON.")
     try:
+        args = parser.parse_args(argv)
         registry = load_registry(args.registry)
         available = read_available(args.available) if args.available is not None else None
         result = select_model(registry, role=args.role, level=args.level, max_cost=args.max_cost,
                               budget_profile=args.budget_profile, dev_family=args.dev_family,
                               dev_model=args.dev_model, available=available, allow_preview=args.allow_preview)
-    except (SelectionError, ValueError, OSError, KeyError, TypeError) as exc:
-        code = exc.code if isinstance(exc, SelectionError) else 1
-        if args.json:
-            print(dump_json({"error": str(exc), "exit_code": code}), end="")
-        else:
-            print(f"Sélection impossible : {exc}", file=sys.stderr)
-        return code
-    if args.json:
-        print(dump_json(result), end="")
-    else:
-        print(result["id"])
-        print(result["reason"])
-        for warning in result["warnings"]:
-            print(f"À vérifier : {warning}")
-        print(result["herdr_command"])
+        output = dump_json(result)
+    except Exception as exc:
+        payload = error_payload(exc)
+        print(dump_json(payload), end="")
+        return payload["exit_code"]
+    for warning in result["warnings"]:
+        print(f"Avertissement : {warning}", file=sys.stderr)
+    print(output, end="")
     return 0
 
 

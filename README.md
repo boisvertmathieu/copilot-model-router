@@ -1,125 +1,23 @@
-# Un modèle Copilot par rôle dans Herdr
+# copilot-model-router
 
-Un orchestrateur multi-agents lance ses équipiers avec GitHub Copilot CLI dans Herdr, sous WSL. Avant chaque équipier, le routeur classe la tâche (`trivial`, `standard`, `complexe`, `critique`), puis réutilise le sélecteur pour choisir un modèle selon le rôle, la disponibilité et le budget. Le validateur e2e **et** le réviseur doivent utiliser un fournisseur différent de celui du dev.
-
-Le registre contient **26 modèles** issus du croisement des tarifs officiels et du support CLI. La synchronisation réseau a été exécutée; 25 ID ont aussi été repérés dans le catalogue intégré du CLI 1.0.105. L'accès au compte reste inconnu pour tous les modèles; `gpt-6.1-terra` garde `id_verified: false`.
-
-Les [constats de recherche](docs/reverse-engineering.md) distinguent les sources vérifiées, la simulation HTTP locale et les hypothèses. Aucun catalogue de compte Copilot réel n'a été obtenu sur cette machine sans licence.
-
-## Démarrage
-
-Python **3.10 ou plus récent**. PyYAML sert à la synchronisation; le routeur et le sélecteur peuvent utiliser `models.json` si PyYAML est absent. GNU Make est facultatif pour les raccourcis.
+Choose a Copilot model before each Herdr sub-agent. The router prints the command; the orchestrator runs it. Python enforces availability, budget, role bounds and a different provider for `e2e-validator` and `reviewer`.
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-python3 -m pip install -r requirements.txt
-python3 -m unittest discover -s tests -v
-
-# Synchronisation avec les quatre tables officielles, par le réseau.
-python3 scripts/sync_registry.py
-
-# Routage heuristique sans inférence, avant chaque équipier.
-python3 scripts/route.py --role doc --story "Corriger une typo dans la doc" --files 1 --pane 1
-python3 scripts/route.py --role dev --story "Refactor multi-modules" \
-  --diff-stats "12 files changed, 340 insertions(+), 80 deletions(-)" --pane 2 --json
-python3 scripts/route.py --role e2e-validator --story "Valider la feature" \
-  --dev-model claude-sonnet-5.5 --budget-profile premium --pane 3 --json
-
-# Serveur persistant : JSON-RPC 2.0, une requête par ligne.
-python3 scripts/route.py --serve
-# Envoyer {"jsonrpc":"2.0","id":1,"method":"ping"}, puis Ctrl-D pour quitter.
+uv sync
+uv run python scripts/route.py --role dev --story "Add a filter" --available gpt-6-luna,claude-sonnet-5.5 --pane 2 --json
 ```
 
-Sans `--available`, une disponibilité inconnue reste admissible et la sortie le signale. Ça permet de planifier hors ligne; l'orchestrateur doit fournir le catalogue réel avant de lancer les équipiers.
+The example uses a simulated catalog. For real launches, pass your org catalog with `--available FILE` or `--available live`. Add `--classifier llm` for one economy-model Copilot classification call (30-second timeout, heuristic fallback).
 
-Le [guide du routeur](docs/router.md) explique les seuils, les règles par rôle, le JSON et le protocole stdio. Le mapping est `trivial → economy`, `standard → standard`, `complexe → premium`, `critique → frontier`; doc est plafonné à standard et e2e exige au moins premium sauf pour une tâche triviale. `--max-cost` et `--budget-profile` sont exclusifs; le profil fournit son plafond tout en gardant la préférence issue de la classe.
+stdout always contains one JSON object, including errors (`error`, `hint`, `exit_code`, `decision_source: null`). Warnings go to stderr. Success includes `model`, `tier`, `level`, `reasons`, `decision_source` and `herdr_command` with `--pane` (default `1`).
 
-Le niveau des modèles vient d'un **score de métadonnées GitHub, pas de benchmarks** : catégorie, textes du comparatif, indices de contexte, statut et génération dans une lignée. Un passage de monotonie empêche une version plus récente d'avoir un niveau inférieur; une variante fast conserve le niveau de sa version. Le prix filtre le budget et départage les modèles du meilleur niveau admissible. Ainsi, Opus 5.5 reste `frontier` malgré son prix inférieur à celui d'Opus 4.8. La [politique de sélection](docs/selection-policy.md#niveaux-et-préférences) donne les poids et les seuils.
+| Exit | Meaning |
+| ---: | --- |
+| 0 | Routed successfully, including LLM fallback. |
+| 1 | Invalid arguments, registry/files, or no eligible model. |
+| 2 | No eligible model within budget. |
+| 3 | Dev family missing/conflicting, or no independent family. |
+| 4 | Live catalog discovery failed. |
+| 5 | Unknown role. |
 
-Un comparatif absent ou une lignée inconnue donne un niveau prudent fondé sur la catégorie, sous réserve de monotonie, avec `tier_provisoire: true` et un avertissement « à valider ». `tier_override` dans `models.yaml` prévaut sur le score après resynchronisation; un conflit avec la monotonie fait échouer la sync avant écriture. Un domaine sensible seul ne rend plus la tâche critique : « refactor paiement » avec 14 fichiers et 830 lignes reste complexe. Critique exige une faille/CVE/vulnérabilité/injection explicite, ou un domaine sensible combiné à un risque réel ou à au moins 20 fichiers/1 000 lignes.
-
-Le sélecteur direct reste disponible : `python3 scripts/select_model.py --role dev --level premium`. Pour cette CLI historique, `--level`, `--max-cost` et `--budget-profile` restent exclusifs et les préférences par défaut restent propres au rôle.
-
-## Évaluer le routeur
-
-Le [guide d’évaluation](eval/README.md) fournit les parcours pas à pas avec uv et Python classique. Les **104 cas francophone** vérifient des propriétés (classe, tier, coût, famille et disponibilité), sans imposer un ID choisi. Lancer `uv run python eval/run_eval.py`, puis `uv run python eval/run_eval.py --judge --fake-judge` pour le juge de CI. Le [rapport généré](eval/report.md) et les [sorties capturées](eval/proof.md) permettent de vérifier les résultats et le correctif du faux positif « injection de dépendances ».
-
-Sur le poste de travail : `uv run bash scripts/refresh.sh`, puis `uv run python eval/run_eval.py --available live`. Le contrôle de dérive exige des tiers associés à tous les modèles org et signale les modèles actifs du registre absents du catalogue. `--judge --copilot --judge-model ID_MODELE_ECO` active le juge Copilot, avec un seuil moyen de 0,85 par défaut. **Le juge Copilot réel et /models live n’ont pas été testés ici**; les essais utilisent des simulations.
-
-## En environnement de travail avec accès Copilot
-
-```bash
-copilot login
-
-# Écrit le fichier seulement si le CLI retourne un catalogue non vide.
-python3 scripts/list_copilot_models.py --output copilot-models.local.json
-
-# Met à jour les prix et rapproche les ID, politiques et disponibilités du compte.
-python3 scripts/sync_registry.py --from-cli-models copilot-models.local.json
-
-python3 scripts/route.py --role dev --story @mission.txt \
-  --available copilot-models.local.json --json
-
-# Exemple : reprendre l'ID réellement retenu pour le dev.
-python3 scripts/route.py --role e2e-validator --story @mission.txt --dev-model claude-opus-5 \
-  --max-cost 100 --available copilot-models.local.json --json
-
-# Variante : obtenir le catalogue courant au moment de router.
-python3 scripts/route.py --role dev --story @mission.txt --available live --json
-```
-
-Préparer `mission.txt` avec le récit réel. `--story` accepte aussi du texte en ligne; `--diff-stats` accepte un résumé ou un fichier. Le classifieur facultatif `--classifier llm` choisit un modèle economy via le registre, puis utilise l'adaptateur expérimental `copilot --model ID -p PROMPT`; en cas d'échec, il revient à l'heuristique. **Cette classification et le catalogue live ne sont pas validés avec un vrai compte Copilot ici.** Les essais emploient `FakeClient` et un CLI simulé; la liste interactive `/models`, les droits de l'organisation et les lancements Herdr attendent le poste de travail.
-
-Le script de découverte utilise directement le protocole RPC du SDK; aucune dépendance Node ou SDK Python n'est nécessaire. Il ne crée aucune session et n'envoie aucun prompt. Une authentification GitHub sans licence ou sans modèles accessibles peut quand même échouer : le code de sortie **4** explique alors quoi vérifier.
-
-Un catalogue JSON du SDK (`models`), de l'API (`data`), une réponse RPC (`result.models`), une liste JSON d'ID ou un fichier texte d'ID conviennent à `--available`. Une liste en ligne convient aussi :
-
-```bash
-python3 scripts/route.py --role reviewer --dev-family anthropic \
-  --available gpt-6-sol,gemini-4-argon,claude-opus-5 --json
-```
-
-Pour garder le registre à jour : `bash scripts/refresh.sh`, ou `make refresh`. Le script importe le catalogue s'il peut l'obtenir, sinon il synchronise les tarifs seulement. `make test` lance la suite et `make route-demo` montre trois choix sans démarrer Herdr. Les [exemples cron et login WSL](docs/router.md#rafraîchissement-automatique) incluent une garde quotidienne; le serveur doit recevoir `reload` après la mise à jour.
-
-## Instructions pour GitHub Copilot
-
-L'agent orchestrateur sur le poste de travail peut suivre ces étapes et copier [`.github/copilot-instructions.md`](.github/copilot-instructions.md) dans son dépôt de travail.
-
-1. Lire le [guide du routeur](docs/router.md) et la [politique de sélection](docs/selection-policy.md), puis actualiser le registre. Obtenir un catalogue avec `list_copilot_models.py`; si l'accès échoue, corriger la connexion ou la licence avant tout lancement.
-2. Appeler `route.py --role dev --story @mission.txt --available CATALOGUE --json` avec les signaux et le budget de la mission. Vérifier le code de sortie, conserver `model` et `family` dans l'état de la mission.
-3. Appeler le routeur pour chaque autre rôle. Pour `e2e-validator` et `reviewer`, fournir l'ID du dev à `--dev-model`, ou son fournisseur officiel à `--dev-family`. Le serveur `--serve` évite de relire le registre entre les équipiers.
-4. Sur un code **2**, **3** ou **4**, interrompre ce lancement et rapporter la raison. Ne jamais contourner le plafond, reprendre le fournisseur du dev pour débloquer une validation ou ignorer un échec live.
-5. Fournir `--pane` et éventuellement `--name`, puis démarrer dans des panneaux Herdr existants avec `herdr agent start ... --kind copilot --pane ... -- --model ID`. Utiliser `herdr_argv`, ou lire `herdr_cmd` avec `shlex.split()` sans `eval`. Les [exemples d'intégration](docs/herdr-integration.md) vérifient toute l'équipe avant exécution.
-6. Faire exécuter au validateur les scénarios d'acceptation et exiger des preuves de résultats. Le choix d'un autre fournisseur réduit le risque d'erreurs corrélées; il ne remplace pas les tests.
-
-Deux modèles d'un même fournisseur peuvent partager des angles morts. Changer de fournisseur vise à réduire le biais d'auto-évaluation quand le dev est ensuite revu. Il s'agit d'une règle de conception de l'équipe, pas d'une garantie scientifique d'indépendance.
-
-## Coût, fichiers et vérification
-
-Le `cost_index` est une estimation en **GitHub AI Credits par tâche de référence** : 200 000 jetons d'entrée au total, dont la moitié déjà en cache, et 20 000 jetons de sortie, sur plusieurs appels au tarif `Default`. Les prix sont en USD par million de jetons; 1 crédit vaut 0,01 USD selon la [tarification officielle](https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing).
-
-L'estimation exclut la création de cache et les tarifs long contexte. Ce n'est pas un plafond de facture réelle : le CLI peut consommer plus de jetons que la référence. Pour borner une session, le CLI 1.0.105 expose aussi `--max-ai-credits` et `/limits set max-ai-credits N`. Les multiplicateurs des anciens plans annuels sont conservés séparément et ne servent jamais à calculer ce coût.
-
-| Fichier | Utilité |
-| --- | --- |
-| `models.yaml`, `models.json` | Registre lisible et copie de secours générée avec empreinte du YAML. |
-| `upstream/` | Les quatre tables GitHub téléchargées, utilisables pour une sync hors ligne. |
-| `scripts/select_model.py` | Filtrage, budget, indépendance des familles et commande Herdr. |
-| `scripts/route.py` | Classification, ajustement par rôle, sélection importée et serveur stdio. |
-| `scripts/registry_lib.py` | Score de capacité commun, lignées, monotonie et lecture du registre. |
-| `scripts/sync_registry.py` | Métadonnées GitHub, prix, niveaux de capacité, ajouts/retraits et catalogue réel. |
-| `scripts/refresh.sh`, `Makefile` | Rafraîchissement avec repli, tests et démos du routeur. |
-| `scripts/list_copilot_models.py` | Découverte locale par RPC, avec diagnostic de connexion. |
-| `eval/` | Cas francophone, runner déterministe, juges facultatifs, rapport et preuves. |
-| `pyproject.toml`, `requirements.txt` | Installation avec uv ou Python classique (stdlib + PyYAML). |
-| `docs/evidence/` | Versions, empreintes, catalogue intégré et expérience HTTP simulée. |
-| `tests/` | Tests unitaires et essais de commandes avec un CLI simulé. |
-
-Pour rejouer la synchronisation sans réseau :
-
-```bash
-python3 scripts/sync_registry.py --upstream-dir upstream
-```
-
-Le correctif de tiering est vérifié avec **94 tests réussis**, incluant les tests historiques adaptés. La [preuve du correctif](docs/tiering-proof.md) copie l'exécution avant, rejoue la même commande après, vérifie un vrai signal critique et les budgets, et compare les tiers des 26 modèles. Les [preuves initiales du routeur](docs/router-proof.md) consignent le comportement historique : budgets/familles, serveur, faux client LLM et synchronisation provisoire. Le [rapport initial](docs/evidence/validation.json) conserve les preuves de la synchronisation réseau antérieure; le correctif utilise les tables locales de `upstream/`. Aucun lancement Herdr réel, commit ou push n'a été effectué. Les limites restantes comprennent l'accès réel aux modèles, la classification Copilot, l'ID `gpt-6.1-terra` et le routage HTTP du compte; voir le [rapport de recherche](docs/reverse-engineering.md).
+[WSL2 installation and orchestrator instructions](docs/integration.md) · [Selection policy](docs/router.md) · [Evaluation and tests](eval/README.md)

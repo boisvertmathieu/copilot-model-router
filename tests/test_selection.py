@@ -59,6 +59,27 @@ class SelectionTests(unittest.TestCase):
         self.registry["models"].append(model("premium-abordable", "xai", "premium", 35))
         self.assertEqual(select_model(self.registry, role="dev")["id"], "premium-abordable")
 
+    def test_equal_price_prefers_capability_before_recency_and_id(self):
+        registry = {"models": [
+            model("a-recent", "anthropic", "premium", 37,
+                  display_name="Claude Sonnet 5", capability={"score": 60}),
+            model("z-capable", "xai", "premium", 37,
+                  display_name="Grok 4.7", capability={"score": 80}),
+        ]}
+        self.assertEqual(select_model(registry, role="dev")["id"], "z-capable")
+
+    def test_equal_score_prefers_numeric_recency_then_id(self):
+        registry = {"models": [
+            model("a-older", "anthropic", "premium", 37,
+                  display_name="Claude Sonnet 4.9", capability={"score": 60}),
+            model("z-newer", "anthropic", "premium", 37,
+                  display_name="Claude Opus 4.10", capability={"score": 60}),
+        ]}
+        self.assertEqual(select_model(registry, role="dev")["id"], "z-newer")
+        registry["models"][0]["display_name"] = "Claude Sonnet 4.10"
+        for models in (registry["models"], list(reversed(registry["models"]))):
+            self.assertEqual(select_model({"models": models}, role="dev")["id"], "a-older")
+
     def test_e2e_et_reviewer_changent_de_famille(self):
         for role in ("e2e-validator", "reviewer"):
             result = select_model(self.registry, role=role, dev_model="dev-anthropic")
@@ -137,6 +158,15 @@ class SelectionTests(unittest.TestCase):
         result = select_model(self.registry, role="dev", available=[{"id": "dev-anthropic"}])
         self.assertEqual(result["id"], "dev-anthropic")
 
+    def test_explicit_catalog_overrides_unsupported_cli(self):
+        self.registry["models"][0].update(cli=False, retired=True, available=False)
+        result = select_model(self.registry, role="dev", available=[{"id": "dev-anthropic"}])
+        self.assertEqual(result["id"], "dev-anthropic")
+
+    def test_null_runtime_is_treated_as_missing_metadata(self):
+        self.registry["models"][0]["runtime"] = None
+        self.assertEqual(select_model(self.registry, role="dev")["id"], "dev-anthropic")
+
     def test_catalogue_refuse_indisponibles_et_non_chat(self):
         for fields in ({"policy": {"state": "disabled"}}, {"model_picker_enabled": False},
                        {"capabilities": {"type": "embeddings"}}, {"available": False}):
@@ -182,6 +212,34 @@ class IntegrationSelectionTests(unittest.TestCase):
         self.assertEqual(family.returncode, 3)
         self.assertEqual(json.loads(family.stdout)["exit_code"], 3)
 
+    def test_unknown_role_json_exit_5(self):
+        result = self.run_select("--role", "unknown")
+        self.assertEqual(result.returncode, 5)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["exit_code"], 5)
+        self.assertTrue(payload["hint"])
+        self.assertIsNone(payload["decision_source"])
+        self.assertEqual(result.stderr, "")
+
+    def test_cli_json_contract_default_pane_and_errors(self):
+        result = self.run_select("--role", "test", "--available", "grok-4.5,grok-4.7")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["model"], "grok-4.7")
+        self.assertEqual(payload["decision_source"], "heuristic")
+        self.assertEqual(payload["herdr_command"],
+                         "herdr agent start test --kind copilot --pane 1 -- --model grok-4.7")
+        for args in ((), ("--role", "test", "--level", "invalid"),
+                     ("--role", "test", "--available", ""),
+                     ("--role", "test", "--max-cost", "0")):
+            with self.subTest(args=args):
+                result = self.run_select(*args)
+                self.assertNotEqual(result.returncode, 0)
+                payload = json.loads(result.stdout)
+                self.assertTrue(payload["error"])
+                self.assertTrue(payload["hint"])
+                self.assertIn("decision_source", payload)
+
     def test_secours_sans_pyyaml(self):
         normal = self.run_select("--role", "doc")
         fallback = self.run_select("--role", "doc", no_yaml=True)
@@ -206,6 +264,7 @@ class IntegrationSelectionTests(unittest.TestCase):
                 path.write_text(json.dumps(payload), encoding="utf-8")
                 self.assertEqual(read_available(str(path))[0]["id"], "gpt-6-sol")
         self.assertEqual(len(read_available("gpt-6-sol,claude-opus-5")), 2)
+        self.assertEqual(read_available('["gpt-6-sol"]'), [{"id": "gpt-6-sol"}])
         with self.assertRaises(ValueError):
             read_available("@introuvable.json")
 

@@ -1,10 +1,10 @@
-# Récits synthétiques francophone; les attentes portent sur des propriétés, jamais sur un ID choisi.
+# Récits synthétiques en français; les attentes portent sur des propriétés, jamais sur un ID choisi.
 schema_version: 1
 cases:
 - id: dev-typo-bouton
   inputs:
     role: dev
-    story: PORTAIL-101 — Corriger « Confimer » sur le bouton de confirmation; garder le français francophone.
+    story: PORTAIL-101 — Corriger « Confimer » sur le bouton de confirmation; garder la langue du guide.
     files: 1
   expect_exit: 0
   expect:
@@ -265,7 +265,7 @@ cases:
 - id: test-accent
   inputs:
     role: test
-    story: QA-101 — Ajouter le cas unitaire pour le nom « Maël » dans le formateur de salutations.
+    story: QA-101 — Ajouter le cas unitaire pour le texte accentué « école » dans le formateur de salutations.
     files: 1
   expect_exit: 0
   expect:
@@ -509,7 +509,7 @@ cases:
     cost_range:
     - 1
     - 25
-- id: doc-region
+- id: doc-vocabulaire
   inputs:
     role: doc
     story: DOC-107 — Remplacer « week-end » par « fin de semaine » dans le guide du service à la clientèle.
@@ -835,7 +835,8 @@ cases:
   expect_exit: 0
   expect:
     level: standard
-    tier: standard
+    # US4: an equally priced same-lineage successor may replace the standard candidate.
+    tier: [standard, premium]
     cost_range:
     - 1
     - 70
@@ -863,7 +864,8 @@ cases:
   expect_exit: 0
   expect:
     level: standard
-    tier: standard
+    # US4: an equally priced same-lineage successor may replace the standard candidate.
+    tier: [standard, premium]
     cost_range:
     - 1
     - 70

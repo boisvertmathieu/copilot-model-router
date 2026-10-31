@@ -17,7 +17,7 @@ from urllib.request import Request, urlopen
 from registry_lib import (
     ROOT, TABLE_FILES, TABLE_BASE, REFERENCE_TASK, ROLE_LEVELS,
     CAPABILITY_POLICY, assign_model_tiers, catalog_entries, clean_name, decimal_number, dump_json,
-    entry_selectable, load_registry, matching_entries, name_key, probable_id,
+    entry_selectable, load_registry, matching_entries, model_lineage, name_key, probable_id,
     reference_cost, write_atomic,
 )
 
@@ -26,7 +26,7 @@ def load_tables(contents: dict[str, str]) -> dict[str, list[dict]]:
     try:
         import yaml
     except ImportError as exc:
-        raise ValueError("La synchronisation exige PyYAML : python3 -m pip install -r requirements.txt.") from exc
+        raise ValueError("La synchronisation exige PyYAML : lancer uv sync.") from exc
     tables = {}
     for filename in TABLE_FILES:
         try:
@@ -87,6 +87,7 @@ def context_from_metadata(rows: list[dict], comparison: dict, client: dict) -> d
 def build_registry(tables: dict, previous: dict | None, date: str,
                    cli_payload=None, mode="local") -> tuple[dict, dict]:
     previous = previous or {}
+    entries = catalog_entries(cli_payload) if cli_payload is not None else None
     result = copy.deepcopy(previous)
     result.pop("_yaml_sha256", None)
     result["schema_version"] = 1
@@ -117,16 +118,18 @@ def build_registry(tables: dict, previous: dict | None, date: str,
             raise ValueError(f"Plusieurs tarifs Default pour {row['model']}.")
         default_rows[key] = row
     report = {"new": [], "removed": [], "provisional": [], "excluded_non_cli": [], "unmatched_cli": [],
-              "ambiguous_cli": [], "id_changes": []}
+              "pricing_missing": [], "ambiguous_cli": [], "id_changes": []}
     models = []
     current_keys = set()
     for key, row in default_rows.items():
-        if clients.get(key, {}).get("cli") is not True:
+        name = clean_name(row["model"])
+        candidate = old.get(key, {"id": probable_id(name), "display_name": name})
+        if clients.get(key, {}).get("cli") is not True and not (
+                entries is not None and matching_entries(candidate, entries)):
             report["excluded_non_cli"].append(clean_name(row["model"]))
             continue
         current_keys.add(key)
         model = copy.deepcopy(old.get(key, {}))
-        name = clean_name(row["model"])
         prices = {field: money(row[field]) for field in ("input", "output", "cached_input")}
         prices["cache_write"] = money(row.get("cache_write"), optional=True)
         cost = reference_cost(prices)
@@ -147,11 +150,12 @@ def build_registry(tables: dict, previous: dict | None, date: str,
             "preview": row["release_status"] != "GA" or "preview" in name.casefold(),
             "github_category": row["category"],
             "github_comparison": {field: comparison[field] for field in ("task_area", "excels_at") if field in comparison},
-            "github_context": context_from_metadata(pricing_rows[key], comparison, clients[key]),
+            "github_context": context_from_metadata(pricing_rows[key], comparison, clients.get(key, {})),
             "pricing": {"currency": "USD", "per_tokens": 1_000_000,
                         "tier": "Default", "threshold": row.get("threshold", "Not applicable"),
                         **prices},
             "cost_index": cost,
+            "pricing_missing": False,
             "legacy_multiplier": legacy.get(key),
             "capabilities": sorted(set(capabilities_from_comparison(comparison)
                                        + model.get("manual_capabilities", []))),
@@ -167,22 +171,52 @@ def build_registry(tables: dict, previous: dict | None, date: str,
     for key, old_model in old.items():
         if key not in current_keys:
             model = copy.deepcopy(old_model)
-            if not model.get("retired"):
-                report["removed"].append(model["display_name"])
-            model.update(retired=True, cli=False, available=False)
-            model["retired_on"] = model.get("retired_on", date)
+            if entries is not None and matching_entries(model, entries):
+                model.update(retired=False, cli=True)
+            else:
+                if not model.get("retired"):
+                    report["removed"].append(model["display_name"])
+                model.update(retired=True, cli=False, available=False)
+                model["retired_on"] = model.get("retired_on", date)
             model.setdefault("github_comparison", {field: comparisons.get(key, {})[field]
                              for field in ("task_area", "excels_at") if field in comparisons.get(key, {})})
             models.append(model)
+    if entries is not None:
+        for entry in entries:
+            if any(matching_entries(model, [entry]) for model in models):
+                continue
+            # Un ID arrivé avant la documentation reçoit tout de même un niveau.
+            # Aucun tarif n'est inventé : sans coût connu, il reste non sélectionnable.
+            name = entry.get("name") or entry["id"]
+            family = entry.get("family") or entry.get("provider")
+            if not isinstance(family, str) or not family:
+                family = next((family for family in {m["family"] for m in models}
+                               if model_lineage(family, name) or model_lineage(family, entry["id"])), "unknown")
+            lineage = model_lineage(family, name) or model_lineage(family, entry["id"])
+            peers = [model for model in models if model["family"] == family and lineage
+                     and (model_lineage(family, model["display_name"]) or (None,))[0] == lineage[0]]
+            category = entry.get("category") or (peers[-1]["github_category"] if peers else "Lightweight")
+            prices = entry.get("pricing")
+            cost = (float(decimal_number(entry["cost_index"])) if entry.get("cost_index") is not None
+                    else reference_cost(prices) if isinstance(prices, dict) else None)
+            model = {"id": entry["id"], "display_name": name, "family": family,
+                     "aliases": [], "cli": True, "retired": False, "id_verified": True,
+                     "id_source": "Catalogue importé; métadonnées GitHub absentes.",
+                     "available": entry_selectable(entry), "preview": bool(entry.get("preview")),
+                     "release_status": "Preview" if entry.get("preview") else "GA",
+                     "github_category": category, "github_comparison": {},
+                     "cost_index": cost, "pricing_missing": cost is None,
+                     "source": {"date": date, "mode": "catalogue_importe"}}
+            if prices is not None:
+                model["pricing"] = prices
+            models.append(model)
+            report["new"].append(name)
     assign_model_tiers(models)
     report["provisional"] = [model["display_name"] for model in models
                              if model["tier_provisoire"] and not model.get("retired")]
     if cli_payload is not None:
-        entries = catalog_entries(cli_payload)
         used = set()
         for model in models:
-            if model["retired"]:
-                continue
             matches = matching_entries(model, entries)
             if len(matches) > 1:
                 report["ambiguous_cli"].append(model["display_name"])
@@ -192,7 +226,17 @@ def build_registry(tables: dict, previous: dict | None, date: str,
             model["available_source"] = {"date": date, "method": "catalogue_importe",
                                          "catalog_source": cli_payload.get("source") if isinstance(cli_payload, dict) else None}
             if entry:
+                model.update(cli=True, retired=False)
+                if model.get("source", {}).get("mode") == "catalogue_importe":
+                    if entry.get("cost_index") is not None:
+                        model["cost_index"] = float(decimal_number(entry["cost_index"]))
+                    elif isinstance(entry.get("pricing"), dict):
+                        model["pricing"] = entry["pricing"]
+                        model["cost_index"] = reference_cost(entry["pricing"])
+                    model["pricing_missing"] = model.get("cost_index") is None
                 used.add(entry["id"])
+                if model.get("cost_index") is None:
+                    report["pricing_missing"].append(entry["id"])
                 if model["id"] != entry["id"]:
                     report["id_changes"].append({"old": model["id"], "new": entry["id"]})
                     model["aliases"] = sorted(set(model["aliases"] + [model["id"]]))
@@ -249,7 +293,7 @@ def main(argv=None) -> int:
                       for name, text in contents.items()},
         }
         import yaml
-        yaml_text = "# Registre généré; réglages manuels : voir docs/selection-policy.md.\n" + yaml.safe_dump(
+        yaml_text = "# Registre généré; réglages manuels : voir docs/router.md.\n" + yaml.safe_dump(
             registry, allow_unicode=True, sort_keys=False, width=110)
         json_registry = {**registry, "_yaml_sha256": hashlib.sha256(yaml_text.encode()).hexdigest()}
         json_text = dump_json(json_registry)
@@ -267,7 +311,8 @@ def main(argv=None) -> int:
             for key, label in (("new", "Nouveaux"), ("removed", "Retirés du CLI"),
                                ("provisional", "Niveaux provisoires, à valider"),
                                ("excluded_non_cli", "Exclus, sans support CLI documenté"),
-                               ("unmatched_cli", "ID importés sans tarif CLI associé"),
+                               ("unmatched_cli", "ID importés sans correspondance unique"),
+                               ("pricing_missing", "ID importés sans coût connu, exclus du routage"),
                                ("ambiguous_cli", "Correspondances ambiguës")):
                 print(f"{label} : {', '.join(report[key]) or 'aucun'}.")
             if report["id_changes"]:

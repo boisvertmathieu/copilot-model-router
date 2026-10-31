@@ -90,6 +90,24 @@ class EvalTests(unittest.TestCase):
         self.assertEqual(self.registry, before)
         self.assertEqual(report["drift"]["status"], "SAUTÉ")
 
+    def test_default_eval_does_not_dirty_tracked_files(self):
+        before = subprocess.check_output(["git", "diff", "--binary"], cwd=ROOT)
+        result = self.run_cli("--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(json.loads(result.stdout)["passed"])
+        self.assertEqual(subprocess.check_output(["git", "diff", "--binary"], cwd=ROOT), before)
+        report = ROOT / "eval/.reports/report.md"
+        self.assertTrue(report.is_file())
+        ignored = subprocess.run(["git", "check-ignore", str(report)], cwd=ROOT, capture_output=True)
+        self.assertEqual(ignored.returncode, 0)
+
+    def test_drift_ignores_models_confirmed_absent_from_org(self):
+        registry = copy.deepcopy(self.registry)
+        for model in registry["models"]:
+            model["available"] = model["id"] == "gpt-6-luna"
+        drift = ev.check_drift(registry, [{"id": "gpt-6-luna"}])
+        self.assertEqual(drift["status"], "OK")
+
     def test_verification_proprietes_independante(self):
         case = self.case()
         decision = ev.run_case(case, self.registry)["decision"]
@@ -252,7 +270,7 @@ class EvalTests(unittest.TestCase):
                 with self.subTest(mode=mode):
                     verdict = ev.CopilotJudge(mode, cli=cli, timeout=2).judge(case, decision)
                     self.assertEqual(verdict["score"], 0.9)
-                    self.assertIn("francophone", verdict["justification"])
+                    self.assertIn("récit", verdict["justification"])
 
     def test_copilot_juge_parsing_refuse_ambigu_et_invalides(self):
         case = self.case()

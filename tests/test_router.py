@@ -3,7 +3,6 @@
 import copy
 import json
 import os
-import selectors
 import shlex
 import subprocess
 import sys
@@ -15,7 +14,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 from registry_lib import load_registry
-from route import CopilotCliClient, FakeClient, heuristic_classify, route
+from route import CopilotCliClient, FakeClient, heuristic_classify, main, route
 from select_model import SelectionError
 from test_selection import model
 
@@ -125,9 +124,28 @@ class HeuristicTests(unittest.TestCase):
 
     def test_signaux_invalides(self):
         for params in ({"files": -1}, {"files": True}, {"files": 1.2},
-                       {"diff_stats": "statistiques brisées"}, {"story_type": "inconnu"}):
+                       {"story_type": "inconnu"}):
             with self.subTest(params=params), self.assertRaises(ValueError):
                 heuristic_classify(**params)
+
+    def test_diff_stats_formats(self):
+        for stats, files, lines in (
+            ("14 files, 620 insertions", 14, 620),
+            ("12 files changed, 340 insertions(+), 80 deletions(-)", 12, 420),
+            ("1 file changed", 1, 0),
+            (" src/a.py | 340 ++++\n src/b.py | 80 ----\n 2 files changed, 340 insertions(+), 80 deletions(-)\n", 2, 420),
+        ):
+            with self.subTest(stats=stats):
+                result = heuristic_classify(diff_stats=stats)
+                self.assertEqual(result["signals"]["files"], files)
+                self.assertEqual(result["signals"]["changed_lines"], lines)
+                self.assertEqual(result["warnings"], [])
+
+    def test_unreadable_diff_ignored(self):
+        result = heuristic_classify(story="Ajouter un filtre", diff_stats="statistiques brisées")
+        self.assertEqual(result["level"], "standard")
+        self.assertIsNone(result["signals"]["changed_lines"])
+        self.assertTrue(result["warnings"])
 
 
 class RouterTests(unittest.TestCase):
@@ -184,11 +202,11 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(result["herdr_argv"], expected)
         self.assertEqual(self.registry, before)
         no_pane = route(self.registry, role="doc")
-        self.assertNotIn("--pane", no_pane["herdr_argv"])
+        self.assertEqual(no_pane["herdr_argv"][6:8], ["--pane", "1"])
         self.assertEqual(no_pane["herdr_argv"][3], "doc")
 
     def test_fake_llm_et_heuristique_sans_client(self):
-        fake = FakeClient("critique\n")
+        fake = FakeClient('{"level":"critique","reason":"Risque élevé."}\n')
         result = route(self.registry, role="dev", story="Une petite tâche", classifier="llm", client=fake)
         self.assertEqual((result["level"], result["tier"], result["classification"]),
                          ("critique", "frontier", "llm"))
@@ -208,14 +226,17 @@ class RouterTests(unittest.TestCase):
                 self.assertIn("repli heuristique", " ".join(result["warnings"]))
 
     def test_adaptateur_choisit_economy_et_passe_des_arguments(self):
-        completed = subprocess.CompletedProcess([], 0, "complexe\n", "")
+        completed = subprocess.CompletedProcess([], 0, '{"level":"complexe","reason":"Portée étendue."}\n', "")
         with patch("route.subprocess.run", return_value=completed) as run:
             result = route(self.registry, role="dev", classifier="llm", copilot_cli="copilot-simule", timeout=2)
         self.assertEqual(result["classifier_model"], "autre-economy")
         self.assertEqual(result["tier"], "premium")
         args, kwargs = run.call_args
+        run.assert_called_once()
         self.assertEqual(args[0][:4], ["copilot-simule", "--model", "autre-economy", "-p"])
         self.assertEqual(kwargs["timeout"], 2)
+        self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
+        self.assertIn("--allow-all-tools", args[0])
         self.assertNotIn("shell", kwargs)
 
     def test_adaptateur_refus_delai_cli_absent_et_aucun_economy(self):
@@ -241,6 +262,145 @@ class RouterTests(unittest.TestCase):
         self.assertIn("provisoire", " ".join(result["warnings"]))
 
 
+class LlmGuardrailTests(unittest.TestCase):
+    def setUp(self):
+        self.registry = sample_registry()
+
+    def classify(self, preferred=None, **params):
+        response = {"level": "standard", "reason": "Travail courant."}
+        if preferred is not None:
+            response["preferred_model"] = preferred
+        self.client = FakeClient(json.dumps(response))
+        return route(self.registry, classifier="llm", client=self.client,
+                     **{"role": "dev", **params})
+
+    def assert_rejected(self, result, preferred, reason):
+        self.assertNotEqual(result["model"], preferred)
+        self.assertEqual(result["decision_source"], "llm")
+        self.assertIn(reason, " ".join(result["reasons"]))
+        self.assertEqual(len(self.client.prompts), 1)
+
+    def test_llm_prompt_contains_compact_available_models(self):
+        result = self.classify(available="autre-economy,autre-standard")
+        payload = json.loads(self.client.prompts[0].split("\n", 1)[1])
+        self.assertEqual(payload["models"], [
+            {"id": "autre-standard", "family": "google", "tier": "standard", "cost": 20},
+            {"id": "autre-economy", "family": "openai", "tier": "economy", "cost": 2.1},
+        ])
+        self.assertEqual(result["classifier_model"], "autre-economy")
+        self.assertEqual(result["decision_source"], "llm")
+
+    def test_llm_valid_preference_is_honored(self):
+        self.registry["models"].append(model("standard-suggere", "xai", "standard", 25))
+        result = self.classify("standard-suggere")
+        self.assertEqual(result["model"], "standard-suggere")
+        self.assertIn("validée", " ".join(result["reasons"]))
+
+    def test_llm_cross_lineage_ceiling_kept(self):
+        self.registry["models"][1]["cost_index"] = 20
+        result = self.classify("autre-premium", role="test")
+        self.assert_rejected(result, "autre-premium", "plafond de niveau")
+        self.assertEqual(result["model"], "autre-standard")
+
+    def test_llm_unknown_preference_rejected(self):
+        self.assert_rejected(self.classify("inconnu"), "inconnu", "hors catalogue")
+
+    def test_llm_unavailable_preference_rejected(self):
+        result = self.classify("claude-dev", available="autre-standard,autre-economy")
+        self.assert_rejected(result, "claude-dev", "indisponible")
+        self.assertIn(result["model"], ("autre-standard", "autre-economy"))
+
+    def test_llm_same_dev_family_rejected_for_both_roles(self):
+        for role in ("reviewer", "e2e-validator"):
+            with self.subTest(role=role):
+                result = self.classify("claude-dev", role=role, dev_model="claude-dev")
+                self.assert_rejected(result, "claude-dev", "même famille")
+                self.assertNotEqual(result["family"], "anthropic")
+
+    def test_llm_over_budget_preference_rejected(self):
+        for budget in ({"max_cost": 25}, {"budget_profile": "petit"}):
+            with self.subTest(budget=budget):
+                result = self.classify("autre-premium", **budget)
+                self.assert_rejected(result, "autre-premium", "budget dépassé")
+                self.assertLessEqual(result["cost_index"], 25)
+
+    def test_llm_dominated_preference_rejected(self):
+        self.registry["models"] += [
+            model("claude-opus-4.8", "anthropic", "standard", 30, display_name="Claude Opus 4.8"),
+            model("claude-opus-5.5", "anthropic", "premium", 30, display_name="Claude Opus 5.5"),
+        ]
+        result = self.classify("claude-opus-4.8")
+        self.assert_rejected(result, "claude-opus-4.8", "génération dominée")
+        self.assertEqual(result["model"], "claude-opus-5.5")
+
+    def test_llm_same_lineage_successor_can_exceed_ceiling(self):
+        self.registry["models"] += [model("grok-4.5", "xai", "standard", 30),
+                                    model("grok-4.7", "xai", "premium", 30)]
+        result = self.classify("grok-4.7", role="test")
+        self.assertEqual(result["model"], "grok-4.7")
+        self.assertIn("validée", " ".join(result["reasons"]))
+
+    def test_llm_preference_kept_when_successor_violates_constraints(self):
+        self.registry["models"] += [
+            model("grok-4.5", "xai", "standard", 30),
+            model("grok-4.7", "xai", "premium", 30),
+        ]
+        for fields, params in (({"available": False}, {}),
+                               ({"cost_index": 31}, {"max_cost": 30}),
+                               ({"runtime": {"policy": {"state": "disabled"}}}, {})):
+            registry = copy.deepcopy(self.registry)
+            self.registry["models"][-1].update(fields)
+            with self.subTest(fields=fields):
+                result = self.classify("grok-4.5", **params)
+                self.assertEqual(result["model"], "grok-4.5")
+                self.assertIn("validée", " ".join(result["reasons"]))
+            self.registry = registry
+
+    def test_llm_role_bounds_reject_preference(self):
+        for preferred, params in (("autre-frontier", {"role": "doc"}),
+                                  ("autre-economy", {"role": "e2e-validator", "dev_model": "claude-dev"})):
+            with self.subTest(params=params):
+                self.assert_rejected(self.classify(preferred, **params), preferred, "hors bornes")
+
+    def test_llm_nonconforming_json_falls_back(self):
+        for response in ("garbage", "standard", "```json\n{}\n```", "[]", "{}",
+                         '{"level":"standard"}', '{"level":"unknown","reason":"x"}',
+                         '{"level":"standard","reason":" "}',
+                         '{"level":"standard","reason":"x","preferred_model":null}',
+                         '{"level":"standard","reason":"x","extra":1}',
+                         '{"level":"standard","level":"critique","reason":"x"}',
+                         '{"level":"standard","reason":NaN}',
+                         '{"level":"standard","reason":"x"} trailing'):
+            with self.subTest(response=response):
+                client = FakeClient(response)
+                result = route(self.registry, role="dev", story="Refactor", classifier="llm", client=client)
+                self.assertEqual((result["level"], result["decision_source"]), ("complexe", "heuristic"))
+                self.assertEqual(len(client.prompts), 1)
+                self.assertTrue(result["warnings"])
+
+    def test_llm_failure_and_timeout_fall_back_once(self):
+        for error in (RuntimeError("Échec"), TimeoutError(), subprocess.TimeoutExpired("copilot", 30)):
+            with self.subTest(error=error):
+                client = FakeClient(error=error)
+                result = route(self.registry, role="dev", classifier="llm", client=client)
+                self.assertEqual(result["decision_source"], "heuristic")
+                self.assertTrue(result["warnings"])
+                self.assertEqual(len(client.prompts), 1)
+
+    def test_llm_fallback_warns_on_stderr_and_exits_zero(self):
+        import contextlib
+        import io
+        for client in (FakeClient("garbage"), FakeClient(error=TimeoutError()), FakeClient(error=RuntimeError())):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with patch("route.load_registry", return_value=self.registry), \
+                 patch("route.CopilotCliClient", return_value=client), \
+                 contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = main(["--role", "dev", "--classifier", "llm", "--json"])
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(stdout.getvalue())["decision_source"], "heuristic")
+            self.assertIn("repli heuristique", stderr.getvalue())
+
+
 class RouterCliTests(unittest.TestCase):
     def run_route(self, *args, env=None, no_yaml=False):
         return subprocess.run([sys.executable, *(["-S"] if no_yaml else []),
@@ -256,6 +416,110 @@ class RouterCliTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual(payload["exit_code"], expected)
             self.assertNotIn("herdr_cmd", payload)
+
+    def test_cli_errors_are_one_json_object_with_hint(self):
+        for args in ((), ("--role", "unknown"), ("--role", "dev", "--files", "abc"),
+                     ("--role", "dev", "--files", "-1"), ("--role", "dev", "--timeout", "nan"),
+                     ("--role", "dev", "--max-cost", "2", "--budget-profile", "economy"),
+                     ("--role", "doc", "--available", ""),
+                     ("--role", "doc", "--registry", "/tmp/cmr-missing-registry.yaml"),
+                     ("--role", "doc", "--story", "@/tmp/cmr-missing-story.txt")):
+            with self.subTest(args=args):
+                result = self.run_route(*args)
+                self.assertNotEqual(result.returncode, 0)
+                payload = json.loads(result.stdout)
+                self.assertEqual(set(payload), {"error", "hint", "exit_code", "decision_source"})
+                self.assertTrue(payload["hint"])
+                self.assertIsNone(payload["decision_source"])
+                self.assertEqual(payload["exit_code"], result.returncode)
+                self.assertNotIn("Traceback", result.stderr)
+
+    def test_unknown_role_json_exit_5(self):
+        result = self.run_route("--role", "unknown", "--story", "x")
+        self.assertEqual(result.returncode, 5)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["exit_code"], 5)
+        self.assertIn("Rôle inconnu", payload["error"])
+        self.assertTrue(payload["hint"])
+        self.assertEqual(result.stderr, "")
+
+    def test_default_pane_json_contract(self):
+        result = self.run_route("--role", "dev", "--story", "Refactor multi-modules",
+                                "--diff-stats", "12 files changed, 340 insertions(+), 80 deletions(-)")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["model"], "grok-4.7")
+        self.assertEqual(payload["decision_source"], "heuristic")
+        self.assertEqual(payload["herdr_command"],
+                         "herdr agent start dev --kind copilot --pane 1 -- --model grok-4.7")
+
+    def test_removed_serve_mode_returns_json_error(self):
+        result = self.run_route("--role", "dev", "--serve")
+        self.assertEqual(result.returncode, 1)
+        payload = json.loads(result.stdout)
+        self.assertIn("--serve", payload["error"])
+        self.assertTrue(payload["hint"])
+
+    def test_all_roles_json_contract_and_exact_herdr_command(self):
+        with tempfile.TemporaryDirectory() as folder:
+            story = Path(folder) / "story.txt"
+            story.write_text("Ajouter un filtre", encoding="utf-8")
+            for role in ("dev", "test", "doc", "e2e-validator", "reviewer", "planner"):
+                args = ["--role", role, "--story", "@" + str(story), "--pane", "3", "--name", role,
+                        "--available", "gpt-6-luna,gemini-4-argon,claude-sonnet-5.5"]
+                if role in ("reviewer", "e2e-validator"):
+                    args += ["--dev-model", "claude-sonnet-5.5"]
+                with self.subTest(role=role):
+                    result = self.run_route(*args)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    payload = json.loads(result.stdout)
+                    self.assertTrue({"model", "tier", "level", "reasons", "decision_source", "herdr_command"} <= payload.keys())
+                    self.assertEqual(payload["decision_source"], "heuristic")
+                    self.assertTrue(payload["reasons"])
+                    self.assertEqual(payload["herdr_command"],
+                                     f"herdr agent start {role} --kind copilot --pane 3 -- --model {payload['model']}")
+
+    def test_json_without_flag_and_warnings_on_stderr(self):
+        result = subprocess.run([sys.executable, str(ROOT / "scripts/route.py"), "--role", "doc"],
+                                capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("model", json.loads(result.stdout))
+        self.assertIn("Avertissement", result.stderr)
+
+    def test_unreadable_diff_warns_and_continues(self):
+        for stats in ("statistiques brisées", "@/tmp/cmr-missing-diff.txt"):
+            with self.subTest(stats=stats):
+                result = self.run_route("--role", "dev", "--story", "Ajouter un filtre", "--diff-stats", stats)
+                self.assertEqual(result.returncode, 0)
+                self.assertEqual(json.loads(result.stdout)["level"], "standard")
+                self.assertIn("diff illisibles", result.stderr)
+
+    def test_short_diff_summary_and_unreadable_file(self):
+        result = self.run_route("--role", "dev", "--diff-stats", "14 files, 620 insertions")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual((payload["level"], payload["signals"]["files"], payload["signals"]["changed_lines"]),
+                         ("complexe", 14, 620))
+        with tempfile.TemporaryDirectory() as folder:
+            stats = Path(folder) / "diff.txt"
+            stats.write_bytes(b"\xff\xfe")
+            result = self.run_route("--role", "dev", "--diff-stats", "@" + str(stats))
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertIn("diff illisibles", result.stderr)
+            self.assertEqual(json.loads(result.stdout)["level"], "standard")
+
+    def test_malformed_runtime_is_json_error(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "registry.json"
+            registry = sample_registry()
+            for runtime in ([], "invalid", {"policy": []}, {"capabilities": "chat"}):
+                registry["models"][0]["runtime"] = runtime
+                path.write_text(json.dumps(registry), encoding="utf-8")
+                with self.subTest(runtime=runtime):
+                    result = self.run_route("--role", "doc", "--registry", str(path))
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn("hint", json.loads(result.stdout))
+                    self.assertNotIn("Traceback", result.stderr)
 
     def test_story_et_diff_en_fichiers(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -298,79 +562,6 @@ class RouterCliTests(unittest.TestCase):
                     self.assertTrue(payload["available"])
                 else:
                     self.assertEqual(payload["exit_code"], 4)
-
-
-class RouterServerTests(unittest.TestCase):
-    def test_plusieurs_requetes_erreurs_et_notifications(self):
-        requests = ["{json brisé}",
-                    {"jsonrpc": "2.0", "id": 1, "method": "ping"},
-                    {"jsonrpc": "2.0", "id": 2, "method": "route", "params": {"role": "doc", "story": "typo", "pane": 1}},
-                    {"jsonrpc": "2.0", "id": 3, "method": "route", "params": {"role": "dev", "max_cost": 0}},
-                    {"jsonrpc": "2.0", "id": 4, "method": "route", "params": {"role": "e2e-validator"}},
-                    {"jsonrpc": "2.0", "id": 5, "method": "inconnue"},
-                    {"jsonrpc": "2.0", "id": 6, "method": "route", "params": {"role": "dev", "files": "deux"}},
-                    {"jsonrpc": "2.0", "method": "ping"},
-                    {"jsonrpc": "2.0", "id": 7, "method": "reload"},
-                    {"jsonrpc": "2.0", "id": 8, "method": "route", "params": {"role": "dev", "available": ["gpt-6-luna"]}}]
-        content = "\n".join(item if isinstance(item, str) else json.dumps(item) for item in requests) + "\n"
-        result = subprocess.run([sys.executable, str(ROOT / "scripts/route.py"), "--serve"],
-                                input=content, capture_output=True, text=True, timeout=10, cwd="/tmp")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        replies = [json.loads(line) for line in result.stdout.splitlines()]
-        self.assertEqual(len(replies), 9)
-        self.assertEqual(replies[0]["error"]["code"], -32700)
-        self.assertEqual(replies[1]["result"]["status"], "ok")
-        self.assertEqual(replies[2]["result"]["level"], "trivial")
-        self.assertEqual(replies[3]["error"]["data"]["exit_code"], 2)
-        self.assertEqual(replies[4]["error"]["data"]["exit_code"], 3)
-        self.assertEqual(replies[5]["error"]["code"], -32601)
-        self.assertEqual(replies[6]["error"]["code"], -32602)
-        self.assertEqual(replies[7]["result"]["status"], "rechargé")
-        self.assertEqual(replies[8]["result"]["model"], "gpt-6-luna")
-        self.assertEqual(result.stderr, "")
-
-    def test_registre_charge_une_fois_reload_et_echec_atomique(self):
-        with tempfile.TemporaryDirectory() as folder:
-            path = Path(folder) / "models.json"
-            registry = sample_registry()
-            path.write_text(json.dumps(registry), encoding="utf-8")
-            process = subprocess.Popen([sys.executable, str(ROOT / "scripts/route.py"), "--serve", "--registry", str(path)],
-                                       stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            def request(method, params=None):
-                process.stdin.write(json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}}) + "\n")
-                process.stdin.flush()
-                with selectors.DefaultSelector() as selector:
-                    selector.register(process.stdout, selectors.EVENT_READ)
-                    self.assertTrue(selector.select(timeout=5), "Le serveur ne répond pas.")
-                return json.loads(process.stdout.readline())
-            try:
-                first = request("route", {"role": "doc", "story": "typo"})["result"]["model"]
-                registry["models"][3]["id"] = "economy-nouveau"
-                path.write_text(json.dumps(registry), encoding="utf-8")
-                self.assertEqual(request("route", {"role": "doc", "story": "typo"})["result"]["model"], first)
-                self.assertIn("result", request("reload"))
-                self.assertEqual(request("route", {"role": "doc", "story": "typo"})["result"]["model"], "economy-nouveau")
-                path.write_text("{registre brisé", encoding="utf-8")
-                self.assertEqual(request("reload")["error"]["data"]["exit_code"], 1)
-                self.assertEqual(request("route", {"role": "doc", "story": "typo"})["result"]["model"], "economy-nouveau")
-            finally:
-                process.stdin.close()
-                process.wait(timeout=5)
-                process.stdout.close()
-                process.stderr.close()
-
-    def test_requetes_invalides_ne_ferment_pas_le_serveur(self):
-        requests = [[], {"jsonrpc": "1.0", "method": "ping", "id": 1},
-                    {"jsonrpc": "2.0", "id": True, "method": "ping"},
-                    {"jsonrpc": "2.0", "id": 2, "method": "route", "params": []},
-                    {"jsonrpc": "2.0", "id": 3, "method": "route", "params": {"role": "dev", "surprise": 1}},
-                    {"jsonrpc": "2.0", "id": 4, "method": "ping"}]
-        result = subprocess.run([sys.executable, str(ROOT / "scripts/route.py"), "--serve"],
-                                input="\n".join(map(json.dumps, requests)) + "\n", capture_output=True, text=True, timeout=10)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        replies = list(map(json.loads, result.stdout.splitlines()))
-        self.assertEqual([item["error"]["code"] for item in replies[:-1]], [-32600, -32600, -32600, -32602, -32602])
-        self.assertIn("result", replies[-1])
 
 
 class RefreshTests(unittest.TestCase):

@@ -8,11 +8,12 @@ import time
 parser = argparse.ArgumentParser()
 parser.add_argument("--model", required=True)
 parser.add_argument("-p", required=True)
+parser.add_argument("--allow-all-tools", action="store_true", required=True)
 args = parser.parse_args()
 payload = json.loads(args.p.split("\n", 1)[1])
 assert {"case", "decision"} == payload.keys()
 assert payload["case"]["inputs"]["story"]
-verdict = json.dumps({"score": 0.9, "justification": "Choix cohérent avec le récit francophone."}, ensure_ascii=False)
+verdict = json.dumps({"score": 0.9, "justification": "Choix cohérent avec le récit."}, ensure_ascii=False)
 if args.model == "timeout":
     time.sleep(2)
 elif args.model == "error":

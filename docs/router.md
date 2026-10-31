@@ -1,205 +1,125 @@
-# Routeur Copilot avant chaque équipier
+# Routing and selection policy
 
-`scripts/route.py` classe le travail, puis **importe `select_model()`** pour choisir le modèle. Il prépare une commande Herdr sans la lancer. Python 3.10+ suffit pour router avec le secours JSON; la synchronisation exige aussi PyYAML. GNU Make est facultatif pour les raccourcis.
+Use `uv run python scripts/route.py --role ROLE --story TEXT --available FILE --json`.
+`--story @FILE` reads UTF-8. Optional inputs are `--story-type bug|feature|refactor|doc|spike`,
+`--files N`, `--diff-stats TEXT|FILE|@FILE`, `--pane PANE` (default `1`) and `--name NAME` (defaults to the role).
+Roles are `dev`, `test`, `doc`, `e2e-validator`, `reviewer`, `planner`.
+The router never launches Herdr. Each invocation reads the registry anew.
 
-```bash
-python3 scripts/route.py --role doc --story "Corriger une typo dans la doc" --files 1 --pane 1
-python3 scripts/route.py --role dev --story-type refactor \
-  --diff-stats "12 files changed, 340 insertions(+), 80 deletions(-)" --pane 2 --json
-python3 scripts/route.py --role e2e-validator --story "Valider la feature" \
-  --dev-model claude-sonnet-5.5 --available copilot-models.local.json --pane 3 --json
-```
+## Task classification
 
-Les [preuves du correctif de tiering](tiering-proof.md) montrent les sorties avant/après et les codes réels; les [preuves initiales du routeur](router-proof.md) conservent le comportement historique. L'[exemple d'orchestrateur Bash](herdr-integration.md#orchestrateur-bash-avec-le-routeur) choisit chaque équipier avant de démarrer l'équipe.
+The default heuristic combines signals and keeps the highest level:
 
-## Étage 1 : classification sans inférence
-
-`--classifier heuristic` est le défaut. Sans `--available live`, cette voie ne lance pas Copilot et n'envoie aucun prompt. Les signaux sont combinés selon l'ordre **critique > complexe > standard > trivial**. Le signal le plus exigeant gagne; chaque règle déclenchée figure dans `classification_reasons` et `reason`.
-
-| Signal | Classe proposée |
+| Signal | Level |
 | --- | --- |
-| Risque de sécurité explicite : `faille`, `CVE`, `vulnérabilité`, `vulnerability`, `injection`, même sans domaine sensible ni ampleur | `critique` |
-| Domaine sensible + au moins **20 fichiers ou 1 000 lignes** modifiées | `critique` |
-| Domaine sensible + risque `production`, `rollback`, `fuite de données`, `perte de données`, `data leak`, `data leakage`, `data loss`, mot `bug` ou `--story-type bug` | `critique` |
-| Mots `refactor`, `refactoring`, `refactorisation`, `architecture`, `multi-modules` (ou avec espace) | `complexe` |
-| Au moins 10 fichiers **ou** 500 lignes ajoutées + supprimées | `complexe` |
-| De 3 à 9 fichiers **ou** de 100 à 499 lignes modifiées, sans signal plus exigeant | `standard` |
-| De 0 à 2 fichiers et moins de 100 lignes modifiées connues | `trivial` |
-| Mots `typo`, `doc`, `documentation`, `renommage`, `rename` | `trivial` |
-| `--story-type refactor` ou `spike` | `complexe` |
-| `--story-type doc` | `trivial` |
-| Aucun signal décisif, y compris `bug`/`feature` sans autre indice | `standard` |
+| Typo, doc, rename; `doc` story type | `trivial` |
+| Ordinary work, no decisive signal | `standard` |
+| Refactor, architecture, multiple modules; `refactor`/`spike` story type | `complexe` |
+| Explicit vulnerability, CVE or security injection | `critique` |
+| Sensitive domain plus production/rollback/bug/data-loss risk, bug story type, or critical scope | `critique` |
 
-Les domaines sensibles sont `sécurité`, `security`, `auth`, `authentification`, `authentication`, `autorisation`, `authorization`, `paiement`, `payment`, `migration`, `concurrence` et `concurrency`. **Un mot de domaine seul ne rend plus la tâche critique.** « refactor paiement » reste complexe, y compris avec 14 fichiers et 830 lignes modifiées; « typo dans la doc auth » avec un fichier reste trivial. « migration en production » et « corriger une faille d'injection SQL dans l'auth » sont critiques. Sans domaine sensible, 20 fichiers proposent complexe, et le mot `production` seul propose standard. Le seuil critique de 20 fichiers/1 000 lignes exige une portée plus large que le seuil complexe de 10 fichiers/500 lignes.
+Sensitive domains include security, auth, payments, migrations and concurrency. A domain mention alone
+is insufficient. Dependency injection alone is a design pattern, not a security risk.
+Scope is trivial below 3 files/100 changed lines, standard below 10 files/500 lines, otherwise complex.
+Critical scope means at least 20 files or 1,000 changed lines, combined with a sensitive domain.
+`--diff-stats` accepts short summaries (`14 files, 620 insertions`), full `git diff --stat` output,
+and singular summaries (`1 file changed`). Insertions plus deletions give changed lines. When file
+counts disagree, the larger count wins. Unreadable statistics produce a stderr warning and are ignored.
 
-Les mots sont comparés sans distinction de casse ou d'accents, avec des limites de mots; certaines formes au pluriel sont acceptées, ainsi que les ID comme `CVE-2026-12345`. L'expression « injection de dépendances » (`dependency injection`) est exclue du signal de sécurité : c'est un patron de conception. Une injection SQL mentionnée dans le même récit reste critique. Cette correction a été trouvée par la [suite d'évaluation](../eval/README.md#bugs-trouvés). Une mention de risque compte encore dans « aucune faille » : cette heuristique simple ne comprend pas la négation ni tous les contextes sémantiques. Elle classe la portée apparente, sans mesurer la difficulté réelle.
+`--classifier llm` selects an available economy-tier model, then makes exactly one non-interactive
+`copilot --model ID -p PROMPT --allow-all-tools` call with closed stdin. There are no retries.
+`--timeout SECONDS` defaults to 30 and must be positive and finite. The prompt includes the task,
+role, budget and compact available model entries (`id`, `family`, `tier`, `cost`). The response must
+be one strict JSON object with `level`, a nonempty `reason`, and optionally `preferred_model`.
+Unknown fields, duplicate keys, surrounding prose, invalid types and unknown levels are rejected.
+A missing economy model, timeout, CLI failure or malformed response triggers a stderr warning,
+heuristic classification and `decision_source: "heuristic"`. A successful final selection still exits 0.
+A valid response sets `decision_source: "llm"`; Python vets any suggested model before honoring it.
 
-`--files N` accepte un entier positif ou nul. Sans diff, le nombre de lignes reste inconnu; le nombre de fichiers peut à lui seul proposer une classe. `--diff-stats` accepte le résumé anglais de `git diff --stat`, au singulier ou au pluriel, en texte ou dans un fichier UTF-8. Les ajouts et les suppressions s'additionnent. En cas de comptes de fichiers différents, le maximum de `--files` et du diff est retenu et expliqué. Un résumé illisible est une erreur de configuration.
+## Hard constraints, then preference
 
-```bash
-git diff --stat > /tmp/cmr-diff.txt
-python3 scripts/route.py --role dev --diff-stats /tmp/cmr-diff.txt \
-  --story @mission.txt --story-type feature --json
-```
+The task levels `trivial`, `standard`, `complexe`, `critique` prefer the model tiers
+`economy`, `standard`, `premium`, `frontier`. Doc has a hard maximum of standard;
+nontrivial e2e validation has a hard minimum of premium. Reviewer has no extra tier bound.
+For both e2e validation and review, pass `--dev-model ID` so Python excludes the dev's entire
+provider family. For an unknown external ID, `--dev-family PROVIDER` must identify a family in
+the registry. Conflicting model/family inputs fail. Runtime `vendor` is an intermediary, not a provider.
 
-`--story` est du texte, ou `@fichier`; un chemin sans `@` reste un récit. `--diff-stats` reconnaît aussi un chemin existant sans `@`. Une statistique ou un fichier absent n'est pas deviné.
+Selection applies these steps:
 
-## Classification LLM facultative
+1. Apply the current catalog, CLI support, retirement, policy and preview constraints. Models must
+   have a known reference cost and provider. `--allow-preview` permits previews but never disabled
+   policies, hidden picker entries or non-chat models.
+2. Apply role bounds, independent provider and budget. `--max-cost` and `--budget-profile` are
+   exclusive. Profiles supply their `max_cost`; the task keeps its tier preference.
+3. Find candidates in the highest tier at or below the preference. If none is at or below the
+   preference, use the lowest eligible higher tier.
+4. Replace dominated candidates with admissible newer generations in the same provider and lineage
+   whose tier is at least as high and cost at most as large, even above the preferred tier. This
+   exception applies only within a lineage: a standard model still beats an unrelated premium
+   model at the same price. An old standard model cannot beat its equally cheap premium successor.
+5. Honor an LLM suggestion if it passes the hard constraints, substituting its admissible dominant
+   successor when present. A suggestion cannot exceed the target tier through an unrelated lineage
+   when a model at or below the target is admissible. Otherwise record its rejection in `reasons`
+   and use Python's choice.
+6. Without a valid suggestion, choose minimum cost from the candidates and their replacements.
+   Break equal prices by highest capability score, then latest numeric generation, then ID.
+   `fallback` records `lower_tier` or `relaxed_level` where applicable.
 
-```bash
-python3 scripts/route.py --role dev --story @mission.txt --classifier llm \
-  --available copilot-models.local.json --timeout 20 --json
-```
+Budget, provider independence and role bounds are never relaxed. If the newer model is unavailable,
+prohibited, over budget or outside a role bound, it cannot disqualify an otherwise eligible older model.
 
-L'interface injectée est `classify(prompt: str) -> str`. Sans client injecté, le routeur demande au sélecteur un modèle **economy seulement**, admissible dans le catalogue fourni, et crée `CopilotCliClient`. L'adaptateur exécute un tableau d'arguments équivalent à :
+## Org catalog and synchronization
 
-```text
-copilot --model ID_ECONOMY -p PROMPT
-```
+`--available` accepts a JSON/text file, `@FILE`, an ID list separated by commas/spaces, or `live`.
+An empty list permits no model. It replaces the registry's saved availability and runtime policy.
+Matching uses canonical ID, aliases, then an unambiguous display name. The returned ID is always
+in the supplied catalog; canonical restrictions cannot be bypassed by an alias.
+Without `--available`, the saved snapshot applies; `available: null` means unverified and warns.
+The bundled registry has unverified account availability. Use a current org catalog for launches.
 
-Le processus a un délai maximal (`--timeout`, 30 secondes par défaut), sans shell. Le prompt rappelle les mêmes combinaisons de risque et les seuils critiques; un domaine sensible seul y est insuffisant. Après retrait des espaces extérieurs, la réponse doit être exactement `trivial`, `standard`, `complexe` ou `critique`, en minuscules. JSON, explication, ponctuation et plusieurs mots sont refusés. La classe LLM acceptée remplace celle de l'heuristique; `heuristic_level` conserve l'autre résultat pour inspection.
+`uv run python scripts/sync_registry.py --from-cli-models copilot-models.local.json` downloads
+four public GitHub documentation tables and imports the org catalog. Org presence overrides the
+docs' `cli` support flag. Documented models absent from the org are unavailable. Model listing
+uses Copilot's `models.list`; its offline built-in catalog is rejected as proof of account access.
+For an offline refresh, add `--upstream-dir upstream`. `scripts/refresh.sh` attempts the account
+catalog and then syncs; if discovery fails it warns and refreshes documentation only, retaining
+the previous availability snapshot. A failed discovery does not verify current access.
 
-Un CLI absent, un délai dépassé, une sortie non nulle, une réponse invalide ou l'absence de modèle economy entraîne un **repli heuristique**, signalé dans `reason` et `warnings`. Les contraintes du choix final sont ensuite appliquées normalement. Le budget de référence porte sur le modèle de l'équipier; il ne comptabilise pas l'inférence facultative de classification ni la facture réelle.
+All models receive tiers automatically from the existing metadata score. Category bases are
+10/35/65 for Lightweight/Versatile/Powerful; reasoning, task descriptions, context, maturity and
+generation add signals. Thresholds are 0/30/60/85. Prices never affect tiers. Numeric versions
+are compared within a provider and lineage, with equal tiers for variants and nondecreasing tiers
+across generations. `CAPABILITY_POLICY` in `scripts/registry_lib.py` defines the scoring weights.
+These are metadata estimates, not benchmark results.
 
-`FakeClient` permet une injection sans Copilot :
+Missing comparison/lineage metadata sets `tier_provisoire: true`, with a warning on selection.
+An org-only new generation uses its lineage's category (otherwise a conservative Lightweight base),
+then the same scoring and monotonicity rules. Org-only models can supply `cost_index` in reference
+credits, or `pricing` with USD/million-token `input`, `cached_input`, `output`. Costs are never copied
+from an older model or assumed zero. A missing cost is recorded as `pricing_missing: true` and
+excluded from routing until a cost is known; sync reports these IDs in `pricing_missing`, separately
+from ambiguous/unmatched catalog entries. A fully priced newer generation
+that dominates its predecessor is selected automatically, even with a provisional tier.
 
-```python
-import sys
-from pathlib import Path
-sys.path.insert(0, "scripts")
-from registry_lib import load_registry
-from route import FakeClient, route
+Sync preserves `id`, aliases, notes, `tier_override`, `manual_capabilities`, role defaults and budget
+profiles. Use `tier_override`, not the derived `tier`, for a manual adjustment; conflicting overrides
+across variants or generations fail before writing. Removed models remain archived. Sync writes
+YAML and matching JSON with a YAML hash; the JSON fallback refuses a stale hash if PyYAML is absent.
+PyYAML is installed by `uv sync`.
 
-choix = route(load_registry(Path("models.yaml")), role="dev", story="Réviser ce travail",
-              classifier="llm", client=FakeClient("complexe"))
-print(choix["level"], choix["model"])
-```
+## Cost and output
 
-**L'invocation de classification n'a pas été validée contre un vrai Copilot.** Ici, les essais utilisent des clients injectés et un CLI simulé. Le comportement de `-p`, la présentation des réponses et les modèles autorisés restent à valider sur le poste de travail.
+For prices I (input), C (cached input), O (output) in USD/million tokens:
+`cost_index = (0.1 × I + 0.1 × C + 0.02 × O) / 0.01`.
+This reference task totals 200,000 input tokens (half cached) and 20,000 output tokens across calls
+at Default pricing, with no cache creation. It estimates reference credits, not a session cap or bill.
+`legacy_multiplier` is historical data and never enters this formula. Budget comparisons use Decimal.
+Bundled profiles cap reference credits at 5/35/100/250 for economy/standard/premium/frontier.
 
-## Étage 2 : niveaux, rôles et contraintes
-
-| Classe de tâche (`level`) | Préférence du modèle (`requested_tier`) |
-| --- | --- |
-| `trivial` | `economy` |
-| `standard` | `standard` |
-| `complexe` | `premium` |
-| `critique` | `frontier` |
-
-Le rôle `doc` plafonne la préférence **et les candidats** à `standard`. Pour `e2e-validator`, toute classe sauf `trivial` impose au moins `premium`, même en repli. Une validation triviale peut utiliser `economy`. `reviewer` suit le mapping ordinaire; comme e2e, il doit toujours changer de famille par rapport au dev. Les autres rôles suivent le mapping sans borne supplémentaire.
-
-Le routeur transmet ces préférences et bornes à l'API du sélecteur (`preferred_level`, `min_level`, `max_level`). Le niveau de capacité est calculé à la sync à partir des métadonnées GitHub et des générations, avec monotonie par lignée, selon la [politique et les poids](selection-policy.md#niveaux-et-préférences). Ce score ne représente pas des benchmarks. Le sélecteur continue de gérer les statuts CLI/GA, les politiques, la disponibilité, les budgets, les familles et le tri : meilleur niveau inférieur ou égal à la préférence, puis moins cher dans ce niveau. Le prix n'attribue jamais un niveau. Sa CLI historique reste compatible : ses modes `--level`, `--max-cost` et `--budget-profile` restent exclusifs.
-
-Pour le routeur, `--max-cost` et `--budget-profile` sont exclusifs. La classification donne toujours la préférence; un profil fournit son plafond `max_cost`, sans remplacer cette préférence par son champ `level`. Le repli du sélecteur peut abaisser le niveau retenu (`tier`) ou relâcher la préférence vers un niveau supérieur disponible, en respectant les bornes du rôle. **Le plafond de coût et la séparation des familles restent obligatoires.** Ainsi, un dev complexe sous 5 crédits peut retomber en economy; une validation e2e non triviale avec le même plafond échoue si aucun premium admissible ne respecte ce budget.
-
-`--dev-model` résout l'ID ou un alias dans le registre. `--dev-family` donne explicitement le fournisseur officiel, notamment pour un modèle externe. Les deux options doivent être cohérentes. Pour e2e/reviewer, la famille manque ou aucun fournisseur différent n'est admissible : code **3**. Si une autre famille est admissible, mais aucun candidat ne respecte le plafond : code **2**. La [politique de sélection](selection-policy.md) détaille le coût de référence et l'ordre des filtres.
-
-## Disponibilité et sortie
-
-`--available` accepte les formats déjà pris en charge par le sélecteur : fichier JSON/texte, `@fichier`, liste d'ID séparés par virgules ou espaces. En plus, **`--available live` appelle `scripts/list_copilot_models.py`**, qui demande `models.list` par RPC. `--copilot-cli` permet de préciser l'exécutable. Un échec de découverte donne le code **4**, sans commande de lancement; le routeur ne revient pas à une disponibilité inconnue. Le catalogue intégré hors ligne ne prouve aucun droit d'accès.
-
-Sans catalogue fourni, `available: null` reste admissible et génère un avertissement. Pour un lancement réel, fournir un catalogue récent et vérifier `available: true` et `id_verified: true`. Le chemin live est testé avec le CLI simulé seulement; l'accès de l'organisation, la liste interactive `/models` et `models.list` réel restent à valider sur le poste de travail.
-
-La sortie lisible affiche classe, tier retenu, modèle, raisons, avertissements et commande. `--json` fournit entre autres :
-
-| Champ | Sens |
-| --- | --- |
-| `model`, `id`, `family` | ID concret et fournisseur du modèle retenu. |
-| `level`, `classification`, `heuristic_level` | Classe finale, méthode effective et classe heuristique. |
-| `classification_reasons`, `signals` | Règles déclenchées et métriques interprétées. |
-| `requested_tier`, `tier`, `fallback` | Préférence après ajustement du rôle, niveau retenu et repli du sélecteur. |
-| `reason`, `warnings`, `tier_provisoire` | Explications et éléments à valider. |
-| `herdr_cmd`, `herdr_command`, `herdr_argv` | Commande avec quoting `shlex` et tableau d'arguments équivalent. |
-
-`--pane` ajoute `--pane IDENTIFIANT`. Sans cette option, aucun panneau fictif n'est ajouté. `--name` remplace le nom positionnel de l'agent, qui vaut le rôle par défaut : `herdr agent start NOM --kind copilot [--pane PANNEAU] -- --model ID`. Les panneaux doivent convenir à la session Herdr du poste de travail. Le routeur ne lance jamais Herdr.
-
-Les échecs JSON de la CLI contiennent `error` et `exit_code`, sans `herdr_cmd`. Codes : **0** succès, **1** configuration/fichier invalide ou aucun candidat ordinaire, **2** budget impossible (aussi syntaxe `argparse`), **3** famille impossible, **4** découverte live impossible. Les erreurs de syntaxe d'arguments gardent la sortie standard d'`argparse` sur stderr.
-
-## Serveur JSON-RPC 2.0 sur stdio
-
-```bash
-python3 scripts/route.py --serve --registry models.yaml
-```
-
-Le registre est chargé **une seule fois au démarrage**, puis reste en mémoire jusqu'à `reload`. Les seules options de configuration du serveur sont `--registry`, `--copilot-cli` et `--timeout`; les choix de chaque tâche passent dans `params`. Les chemins relatifs sont résolus depuis le dossier du serveur. Chaque requête et chaque réponse occupent une ligne JSON complète; aucune bannière n'est écrite sur stdout. Pas de cadrage `Content-Length`, pas de tableau de requêtes groupées. Le serveur traite les lignes dans l'ordre et se termine avec le code 0 à la fin de stdin.
-
-Entrée, deux requêtes :
-
-```jsonl
-{"jsonrpc":"2.0","id":1,"method":"ping"}
-{"jsonrpc":"2.0","id":2,"method":"route","params":{"role":"doc","story":"Corriger une typo","pane":1}}
-```
-
-Méthodes :
-
-| Méthode | Paramètres | Résultat |
-| --- | --- | --- |
-| `ping` | Absents ou `{}` | `{"status":"ok","models":26}` pour le registre livré. |
-| `route` | Objet, `role` obligatoire | Le même objet qu'une sélection CLI réussie. |
-| `reload` | Absents ou `{}` | Recharge le même fichier; `{"status":"rechargé","models":N}`. En cas d'échec, l'ancien registre reste utilisable. |
-
-Les clés de `params` pour `route` sont les options en **snake_case** : `role`, `story`, `story_type`, `files`, `diff_stats`, `classifier`, `max_cost`, `budget_profile`, `dev_model`, `dev_family`, `available`, `allow_preview`, `pane`, `name`. `files` est un entier, `allow_preview` un booléen; `pane` peut être un entier ou du texte. `available` accepte aussi un tableau JSON d'ID ou d'entrées de catalogue. Les clés inconnues sont refusées. Le classifieur et les autres défauts sont les mêmes que pour la CLI.
-
-Une réponse reprend l'`id` avec `result` ou `error`. Les notifications valides, sans `id`, sont traitées sans réponse. Les erreurs de protocole utilisent `-32700` (JSON illisible), `-32600` (requête invalide), `-32601` (méthode inconnue), `-32602` (paramètres invalides). Les contraintes de sélection et les échecs de rechargement utilisent `-32000` avec `error.data.exit_code` pour conserver les codes métier, par exemple :
-
-```json
-{"jsonrpc":"2.0","id":3,"error":{"code":-32000,"message":"…","data":{"exit_code":2}}}
-```
-
-Une erreur de requête ne ferme pas le serveur. Après une synchronisation externe, envoyer `reload` avant le prochain choix. Un `available: "live"` rafraîchit le catalogue pour cette requête seulement et ne recharge pas les tarifs.
-
-## Nouveaux modèles et niveau provisoire
-
-À la synchronisation, tous les modèles passent dans le même score de capacité, sans prix. Un nouveau Powerful bon marché peut donc atteindre `frontier` et un Lightweight cher peut rester `economy`. Si le comparatif est absent ou la lignée inconnue, la base de catégorie seule donne un niveau prudent : `Lightweight → economy`, `Versatile → standard`, `Powerful → premium`. Le passage de monotonie peut le relever pour respecter une génération précédente. Le modèle reçoit alors `tier_provisoire: true` et `tier_note` précise les signaux manquants et « à valider »; le rapport le liste sous `provisional`.
-
-Le routeur accepte ce modèle et annonce son niveau provisoire dans `reason` et `warnings`. À chaque sync, le marqueur disparaît si les signaux deviennent suffisants ou avec `tier_override: NIVEAU` sur le modèle. L'override prévaut sur le score, se conserve et s'applique après resynchronisation; un conflit avec la monotonie ou entre variantes de la même version arrête la sync avant toute écriture. Les poids, champs et règles d'override sont dans la [politique](selection-policy.md#synchronisation-et-champs-manuels). Un modèle sans prix officiel ou dont la catégorie est inconnue n'obtient pas de tarif inventé.
-
-## Rafraîchissement automatique
-
-```bash
-bash scripts/refresh.sh
-make refresh
-make test
-make route-demo
-
-# Essai hors réseau dans un registre temporaire; le CLI est volontairement absent.
-COPILOT_CLI=/absent/copilot bash scripts/refresh.sh \
-  --upstream-dir upstream --registry /tmp/cmr-models.yaml --json
-```
-
-Le script cherche `copilot` (ou `COPILOT_CLI`). S'il obtient un catalogue non vide avec `list_copilot_models.py`, il appelle `sync_registry.py --from-cli-models FICHIER_TEMPORAIRE`, puis efface ce fichier. Si le CLI manque ou si sa découverte échoue, il annonce le repli et synchronise les tarifs seulement. Ce succès ne confirme aucun nouvel accès au compte; le dernier constat sauvegardé garde sa date. Un échec de sync donne un code non nul. Les arguments du script sont transmis à la sync; `PYTHON` choisit l'interpréteur et `CMR_COPILOT_TIMEOUT` le délai de découverte (15 secondes par défaut).
-
-Pour Make, `PYTHON` et `REFRESH_ARGS` sont configurables : `make refresh REFRESH_ARGS='--upstream-dir upstream'`. La sync réseau est le défaut. Les tests utilisent des dossiers temporaires et les tables livrées.
-
-Exemple de crontab WSL, avec des chemins à adapter et un environnement Python contenant PyYAML :
-
-```cron
-15 7 * * * PYTHON=/home/utilisateur/src/cmr/.venv/bin/python COPILOT_CLI=/home/utilisateur/.local/bin/copilot /bin/bash /home/utilisateur/src/cmr/scripts/refresh.sh >> /home/utilisateur/.cache/cmr-refresh.log 2>&1
-```
-
-Créer le dossier de journal au préalable. Cron doit fonctionner dans la distribution WSL, qui doit être démarrée à l'heure prévue. On peut plutôt ajouter ce bloc à `~/.bashrc` pour les ouvertures de shell interactif WSL, **avec une garde par jour** :
-
-```bash
-if [[ $- == *i* && -r /proc/sys/kernel/osrelease ]] &&
-   [[ $(< /proc/sys/kernel/osrelease) == *[Mm]icrosoft* ]]; then
-    cmr_repo="$HOME/src/cmr"  # À adapter.
-    cmr_cache="${XDG_CACHE_HOME:-$HOME/.cache}/cmr"
-    cmr_jour="$cmr_cache/refresh-$(date +%F)"
-    if [[ -f "$cmr_repo/scripts/refresh.sh" ]] && mkdir -p -- "$cmr_cache"; then
-        # mkdir est atomique : deux terminaux ouverts ensemble ne lancent pas deux syncs.
-        if mkdir -- "$cmr_jour" 2>/dev/null; then
-            (
-                if ! PYTHON="$cmr_repo/.venv/bin/python" bash "$cmr_repo/scripts/refresh.sh" \
-                    >> "$cmr_cache/refresh.log" 2>&1; then
-                    rmdir -- "$cmr_jour"  # Un échec autorise une reprise au prochain shell.
-                fi
-            ) &
-        fi
-    fi
-    unset cmr_repo cmr_cache cmr_jour
-fi
-```
-
-Le travail se fait en arrière-plan. Le dossier daté bloque les autres lancements ce jour-là; en cas d'échec normal, il est retiré. Choisir cron ou le bloc au login pour éviter deux mécanismes indépendants. Aucun cron ni fichier personnel n'a été installé par cette mission.
-
-Il n'y a ici ni organisation Copilot accessible ni Herdr. Les preuves locales couvrent le routage, les contraintes, les processus simulés et le protocole stdio; les lancements réels et les deux chemins Copilot expérimentaux attendent le poste de travail.
+stdout is always one JSON object. Success includes `model`, `tier`, `level`, `reasons`,
+`decision_source`, `cost_index`, `warnings`, and a shell-quoted `herdr_command` with `--pane`
+(default `1`). `herdr_argv` contains the same command as tokens. Diagnostics go to stderr.
+Failures contain `error`, `hint`, `exit_code`, `decision_source: null` and no launch command.
+Unknown roles return exit `5`; budget failures return `2`. See the [README](../README.md)
+for exit codes and [integration](integration.md) for the orchestrator block and complete example.

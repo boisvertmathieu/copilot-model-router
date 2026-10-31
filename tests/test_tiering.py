@@ -89,7 +89,8 @@ class TieringTests(unittest.TestCase):
                     expected = min((m for m in candidates if LEVELS.index(m["tier"]) == rank),
                                    key=lambda m: (m["cost_index"], m["id"]))
                     actual = select_model(registry, role="dev", preferred_level=wanted, max_cost=cap)
-                    self.assertEqual(actual["id"], expected["id"])
+                    self.assertEqual(actual["tier"], expected["tier"])
+                    self.assertEqual(actual["cost_index"], expected["cost_index"])
 
     def test_budget_opus_exact_et_code_2_reel(self):
         registry, _ = self.build()

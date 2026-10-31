@@ -114,7 +114,9 @@ def load_registry(path: Path) -> dict:
             raise ValueError(f"tier_override invalide pour {model['id']}.")
         if not isinstance(model.get("family"), str) or not model["family"]:
             raise ValueError(f"Famille manquante pour {model['id']}.")
-        decimal_number(model.get("cost_index"), f"Coût de {model['id']}")
+        if not (model.get("cost_index") is None and model.get("pricing_missing") is True):
+            decimal_number(model.get("cost_index"), f"Coût de {model['id']}")
+        entry_selectable(model.get("runtime"))
     return data
 
 
@@ -154,10 +156,16 @@ def catalog_entries(payload: Any) -> list[dict]:
     return result
 
 
-def entry_selectable(entry: dict) -> bool:
+def entry_selectable(entry: dict | None) -> bool:
     """Une interdiction explicite du catalogue n'est jamais ignorée."""
-    policy = entry.get("policy") or {}
-    capabilities = entry.get("capabilities") or {}
+    if entry is None:
+        entry = {}
+    if not isinstance(entry, dict):
+        raise ValueError("Les métadonnées runtime doivent être un objet.")
+    policy = entry.get("policy")
+    capabilities = entry.get("capabilities")
+    policy = {} if policy is None else policy
+    capabilities = {} if capabilities is None else capabilities
     if not isinstance(policy, dict) or not isinstance(capabilities, dict):
         raise ValueError("Politique ou capacités de modèle invalides.")
     return (
@@ -166,6 +174,18 @@ def entry_selectable(entry: dict) -> bool:
         and entry.get("model_picker_enabled") is not False
         and capabilities.get("type", "chat") == "chat"
     )
+
+
+def dominates(newer: dict, older: dict) -> bool:
+    """Une génération plus récente, au moins aussi capable, à coût égal ou moindre."""
+    if newer["family"] != older["family"]:
+        return False
+    new_lineage = model_lineage(newer["family"], newer["display_name"])
+    old_lineage = model_lineage(older["family"], older["display_name"])
+    return bool(new_lineage and old_lineage
+                and new_lineage[0] == old_lineage[0] and new_lineage[1] > old_lineage[1]
+                and LEVELS.index(newer["tier"]) >= LEVELS.index(older["tier"])
+                and decimal_number(newer["cost_index"]) <= decimal_number(older["cost_index"]))
 
 
 def read_available(value: str) -> list[dict]:
@@ -183,6 +203,8 @@ def read_available(value: str) -> list[dict]:
         if content.startswith(("[", "{")):
             return catalog_entries(json.loads(content))
         return catalog_entries(content.replace(",", " ").split())
+    if value.lstrip().startswith(("[", "{")):
+        return catalog_entries(json.loads(value))
     if value.startswith("@") or "/" in value or value.endswith((".json", ".txt", ".yaml", ".yml")):
         raise ValueError(f"Fichier de disponibilité introuvable : {value}.")
     return catalog_entries(value.replace(",", " ").split())
