@@ -41,6 +41,12 @@ Un comparatif absent ou une lignée inconnue donne un niveau prudent fondé sur 
 
 Le sélecteur direct reste disponible : `python3 scripts/select_model.py --role dev --level premium`. Pour cette CLI historique, `--level`, `--max-cost` et `--budget-profile` restent exclusifs et les préférences par défaut restent propres au rôle.
 
+## Évaluer le routeur
+
+Le [guide d’évaluation](eval/README.md) fournit les parcours pas à pas avec uv et Python classique. Les **104 cas francophone** vérifient des propriétés (classe, tier, coût, famille et disponibilité), sans imposer un ID choisi. Lancer `uv run python eval/run_eval.py`, puis `uv run python eval/run_eval.py --judge --fake-judge` pour le juge de CI. Le [rapport généré](eval/report.md) et les [sorties capturées](eval/proof.md) permettent de vérifier les résultats et le correctif du faux positif « injection de dépendances ».
+
+Sur le poste de travail : `uv run bash scripts/refresh.sh`, puis `uv run python eval/run_eval.py --available live`. Le contrôle de dérive exige des tiers associés à tous les modèles org et signale les modèles actifs du registre absents du catalogue. `--judge --copilot --judge-model ID_MODELE_ECO` active le juge Copilot, avec un seuil moyen de 0,85 par défaut. **Le juge Copilot réel et /models live n’ont pas été testés ici**; les essais utilisent des simulations.
+
 ## Sur le poste de travail avec accès Copilot
 
 ```bash
@@ -105,6 +111,8 @@ L'estimation exclut la création de cache et les tarifs long contexte. Ce n'est 
 | `scripts/sync_registry.py` | Métadonnées GitHub, prix, niveaux de capacité, ajouts/retraits et catalogue réel. |
 | `scripts/refresh.sh`, `Makefile` | Rafraîchissement avec repli, tests et démos du routeur. |
 | `scripts/list_copilot_models.py` | Découverte locale par RPC, avec diagnostic de connexion. |
+| `eval/` | Cas francophone, runner déterministe, juges facultatifs, rapport et preuves. |
+| `pyproject.toml`, `requirements.txt` | Installation avec uv ou Python classique (stdlib + PyYAML). |
 | `docs/evidence/` | Versions, empreintes, catalogue intégré et expérience HTTP simulée. |
 | `tests/` | Tests unitaires et essais de commandes avec un CLI simulé. |
 
