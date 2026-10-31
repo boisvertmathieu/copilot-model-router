@@ -1,5 +1,5 @@
 ---
-name: herdr-route
+name: herdr-model-router
 description: Choose a Copilot model for Herdr; use when asked to launch, open, or start a Herdr agent or session with automatic model choice.
 ---
 
@@ -13,7 +13,7 @@ Run the wrapper beside this loaded `SKILL.md` (replace the skill directory place
 with its actual installed location):
 
 ```sh
-sh "<skill-directory>/herdr-route.sh" --role dev --story "TASK" --available live --classifier llm --pane 1 --name dev-task
+sh "<skill-directory>/herdr-model-router.sh" --role dev --story "TASK" --available live --classifier llm --pane 1 --name dev-task
 ```
 
 Use the requested role: `dev`, `test`, `doc`, `e2e-validator`, `reviewer`, or `planner`;

@@ -46,7 +46,7 @@ establish account access. Replace it with the real snapshot before a launch.
 
 ## Skill
 
-The `herdr-route` skill chooses a model and opens the requested Herdr agent/session in
+The `herdr-model-router` skill chooses a model and opens the requested Herdr agent/session in
 Autopilot without questions. It needs the same authenticated Copilot CLI, uv, and existing
 Herdr pane as the examples below. Set the checkout's absolute path in the shell that starts
 Copilot (and persist this export in your shell configuration):
@@ -56,18 +56,18 @@ export COPILOT_MODEL_ROUTER_HOME="/path/to/copilot-model-router"
 ```
 
 Install the whole skill directory, including its tiny launch wrapper. Choose personal scope
-for all projects (`~/.copilot/skills/herdr-route/`):
+for all projects (`~/.copilot/skills/herdr-model-router/`):
 
 ```bash
 mkdir -p "$HOME/.copilot/skills"
-cp -R "$COPILOT_MODEL_ROUTER_HOME/skills/herdr-route" "$HOME/.copilot/skills/herdr-route"
+cp -R "$COPILOT_MODEL_ROUTER_HOME/skills/herdr-model-router" "$HOME/.copilot/skills/herdr-model-router"
 ```
 
-Or run these commands from the target project for project scope (`.github/skills/herdr-route/`):
+Or run these commands from the target project for project scope (`.github/skills/herdr-model-router/`):
 
 ```bash
 mkdir -p .github/skills
-cp -R "$COPILOT_MODEL_ROUTER_HOME/skills/herdr-route" .github/skills/herdr-route
+cp -R "$COPILOT_MODEL_ROUTER_HOME/skills/herdr-model-router" .github/skills/herdr-model-router
 ```
 
 For a symlink install, replace the chosen `cp -R` command with `ln -s` using the same source
@@ -75,11 +75,11 @@ and destination. Install into an absent destination; copies must be updated afte
 Copilot discovers both locations; see its [skill command reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#managing-skills-non-interactively).
 
 Smoke test from the target project after installation (two commands). Confirm that the first
-lists `herdr-route`, then run the second with a real task and an existing pane:
+lists `herdr-model-router`, then run the second with a real task and an existing pane:
 
 ```bash
 copilot skill list
-copilot --autopilot --allow-all --no-ask-user -p 'Use /herdr-route to open one Herdr session for role dev, pane 1, name dev-filter, task: add a list filter. Use the live catalog and LLM classifier. Report the chosen model.'
+copilot --autopilot --allow-all --no-ask-user -p 'Use /herdr-model-router to open one Herdr session for role dev, pane 1, name dev-filter, task: add a list filter. Use the live catalog and LLM classifier. Report the chosen model.'
 ```
 
 Expect decision JSON followed by a Herdr launch with exactly its `herdr_command` model.

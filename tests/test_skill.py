@@ -24,9 +24,9 @@ class HerdrRouteSkillTests(unittest.TestCase):
         self.project.mkdir()
         self.router_home = self.directory / "router checkout"
         self.router_home.symlink_to(ROOT, target_is_directory=True)
-        installed = self.directory / "installed skills" / "herdr-route"
-        shutil.copytree(ROOT / "skills/herdr-route", installed)
-        self.wrapper = installed / "herdr-route.sh"
+        installed = self.directory / "installed skills" / "herdr-model-router"
+        shutil.copytree(ROOT / "skills/herdr-model-router", installed)
+        self.wrapper = installed / "herdr-model-router.sh"
         self.bin = self.directory / "bin"
         self.bin.mkdir()
         self.herdr_log = self.directory / "herdr.jsonl"
