@@ -1,0 +1,255 @@
+#!/usr/bin/env python3
+"""Synchronise les tables officielles sans écraser les réglages manuels."""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import hashlib
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.error import URLError
+from urllib.request import Request, urlopen
+
+from registry_lib import (
+    ROOT, TABLE_FILES, TABLE_BASE, REFERENCE_TASK, ROLE_LEVELS, LEVELS,
+    catalog_entries, clean_name, decimal_number, derived_tier, dump_json,
+    entry_selectable, load_registry, matching_entries, name_key, probable_id,
+    reference_cost, write_atomic,
+)
+
+
+def load_tables(contents: dict[str, str]) -> dict[str, list[dict]]:
+    try:
+        import yaml
+    except ImportError as exc:
+        raise ValueError("La synchronisation exige PyYAML : python3 -m pip install -r requirements.txt.") from exc
+    tables = {}
+    for filename in TABLE_FILES:
+        try:
+            data = yaml.safe_load(contents[filename])
+        except yaml.YAMLError as exc:
+            raise ValueError(f"YAML officiel invalide : {filename}.") from exc
+        if not isinstance(data, list) or not all(isinstance(row, dict) for row in data):
+            raise ValueError(f"Table officielle invalide : {filename}.")
+        tables[filename] = data
+    return tables
+
+
+def money(value, *, optional=False):
+    if optional and (value is None or value == "Not applicable"):
+        return None
+    # Une valeur absente n'est jamais interprétée comme un prix nul.
+    return float(decimal_number(str(value).removeprefix("$"), "Prix officiel"))
+
+
+def capabilities_from_comparison(comparison: dict) -> list[str]:
+    """Tags de tâches éditoriaux; aucune capacité technique n'est inventée."""
+    area = str(comparison.get("task_area", "")).casefold()
+    tags = ["code"]
+    if "agent" in area or "autonomous" in area:
+        tags.append("agentique")
+    if "reasoning" in area or "debugging" in area or "complex" in area:
+        tags.append("raisonnement")
+    if "fast" in area or "simple" in area or "repetitive" in area:
+        tags.append("taches_simples")
+    if "writing" in area or "knowledge" in area:
+        tags.append("redaction")
+    if "long-context" in area or "large" in area:
+        tags.append("contexte_long")
+    return tags
+
+
+def build_registry(tables: dict, previous: dict | None, date: str,
+                   cli_payload=None, mode="local") -> tuple[dict, dict]:
+    previous = previous or {}
+    result = copy.deepcopy(previous)
+    result.pop("_yaml_sha256", None)
+    result["schema_version"] = 1
+    result["updated_on"] = date
+    result["reference_task"] = copy.deepcopy(REFERENCE_TASK)
+    result.setdefault("role_defaults", copy.deepcopy(ROLE_LEVELS))
+    result.setdefault("budget_profiles", {
+        "economy": {"level": "economy", "max_cost": 5, "description": "Petites tâches, plafond de 5 crédits."},
+        "standard": {"level": "standard", "max_cost": 35, "description": "Travail courant, plafond de 35 crédits."},
+        "premium": {"level": "premium", "max_cost": 100, "description": "Développement soutenu, plafond de 100 crédits."},
+        "frontier": {"level": "frontier", "max_cost": 250, "description": "Tâches exigeantes, plafond de 250 crédits."},
+    })
+    result["policy"] = {
+        "frontier_min_cost_index": 100,
+        "description": "Lightweight → economy; Versatile → standard; Powerful → premium, ou frontier dès 100 crédits.",
+    }
+    clients = {name_key(row["name"]): row for row in tables["model-supported-clients.yml"]}
+    comparisons = {name_key(row["name"]): row for row in tables["model-comparison.yml"]}
+    legacy = {name_key(row["model"]): money(row["new_multiplier"])
+              for row in tables["annual-subscriber-model-multipliers.yml"]}
+    old = {name_key(row["display_name"]): row for row in previous.get("models", [])}
+    default_rows = {}
+    for row in tables["models-and-pricing.yml"]:
+        if row.get("tier", "Default") != "Default":
+            continue
+        key = name_key(row["model"])
+        if key in default_rows:
+            raise ValueError(f"Plusieurs tarifs Default pour {row['model']}.")
+        default_rows[key] = row
+    report = {"new": [], "removed": [], "excluded_non_cli": [], "unmatched_cli": [],
+              "ambiguous_cli": [], "id_changes": []}
+    models = []
+    current_keys = set()
+    for key, row in default_rows.items():
+        if clients.get(key, {}).get("cli") is not True:
+            report["excluded_non_cli"].append(clean_name(row["model"]))
+            continue
+        current_keys.add(key)
+        model = copy.deepcopy(old.get(key, {}))
+        name = clean_name(row["model"])
+        prices = {field: money(row[field]) for field in ("input", "output", "cached_input")}
+        prices["cache_write"] = money(row.get("cache_write"), optional=True)
+        cost = reference_cost(prices)
+        comparison = comparisons.get(key, {})
+        model.setdefault("id", probable_id(name))
+        model.setdefault("id_verified", False)
+        model.setdefault("id_source", "SUPPOSÉ : slug dérivé du nom officiel; à confirmer avec models.list.")
+        model.setdefault("aliases", [])
+        model.setdefault("available", None)
+        if model.get("retired"):
+            model["available"] = None
+            model.pop("available_source", None)
+            model.pop("retired_on", None)
+        model.update({
+            "display_name": name, "family": row["provider"], "cli": True, "retired": False,
+            "release_status": row["release_status"],
+            # Le statut brut est conservé; le nom peut annoncer un aperçu malgré GA.
+            "preview": row["release_status"] != "GA" or "preview" in name.casefold(),
+            "github_category": row["category"],
+            "tier": model.get("tier_override") or derived_tier(row["category"], cost),
+            "pricing": {"currency": "USD", "per_tokens": 1_000_000,
+                        "tier": "Default", "threshold": row.get("threshold", "Not applicable"),
+                        **prices},
+            "cost_index": cost,
+            "legacy_multiplier": legacy.get(key),
+            "capabilities": sorted(set(capabilities_from_comparison(comparison)
+                                       + model.get("manual_capabilities", []))),
+            "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+            "source": {"date": date, "mode": mode, "pricing": TABLE_BASE + TABLE_FILES[0],
+                       "clients": TABLE_BASE + TABLE_FILES[1],
+                       "comparison": TABLE_BASE + TABLE_FILES[2],
+                       "legacy": TABLE_BASE + TABLE_FILES[3]},
+        })
+        if model["tier"] not in LEVELS:
+            raise ValueError(f"tier_override invalide : {model['tier']}.")
+        if key not in old:
+            report["new"].append(name)
+        models.append(model)
+    for key, old_model in old.items():
+        if key not in current_keys:
+            model = copy.deepcopy(old_model)
+            if not model.get("retired"):
+                report["removed"].append(model["display_name"])
+            model.update(retired=True, cli=False, available=False)
+            model["retired_on"] = model.get("retired_on", date)
+            models.append(model)
+    if cli_payload is not None:
+        entries = catalog_entries(cli_payload)
+        used = set()
+        for model in models:
+            if model["retired"]:
+                continue
+            matches = matching_entries(model, entries)
+            if len(matches) > 1:
+                report["ambiguous_cli"].append(model["display_name"])
+            # En cas d'ambiguïté, on demande une correspondance manuelle d'ID.
+            entry = matches[0] if len(matches) == 1 else None
+            model["available"] = bool(entry and entry_selectable(entry))
+            model["available_source"] = {"date": date, "method": "catalogue_importe",
+                                         "catalog_source": cli_payload.get("source") if isinstance(cli_payload, dict) else None}
+            if entry:
+                used.add(entry["id"])
+                if model["id"] != entry["id"]:
+                    report["id_changes"].append({"old": model["id"], "new": entry["id"]})
+                    model["aliases"] = sorted(set(model["aliases"] + [model["id"]]))
+                    model["id"] = entry["id"]
+                model["id_verified"] = True
+                model["id_source"] = "VÉRIFIÉ : identifiant observé dans le catalogue importé, pas une inférence exécutée."
+                model["runtime"] = {key: entry[key] for key in (
+                    "vendor", "policy", "capabilities", "billing", "preview",
+                    "model_picker_enabled", "supportedReasoningEfforts", "defaultReasoningEffort",
+                ) if key in entry}
+        report["unmatched_cli"] = sorted(entry["id"] for entry in entries if entry["id"] not in used)
+    ids = [m["id"] for m in models]
+    if len(ids) != len(set(ids)):
+        raise ValueError("Le rapprochement produit des ID en double; corrigez les correspondances manuelles.")
+    result["models"] = sorted(models, key=lambda m: (m["family"], m["display_name"].casefold()))
+    return result, report
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--registry", type=Path, default=ROOT / "models.yaml", help="Registre YAML à mettre à jour.")
+    parser.add_argument("--upstream-dir", type=Path, help="Lire les quatre tables locales, sans réseau.")
+    parser.add_argument("--snapshot-dir", type=Path, default=ROOT / "upstream", help="Copies des téléchargements officiels.")
+    parser.add_argument("--from-cli-models", type=Path, help="Catalogue JSON réel de models.list ou de l'API.")
+    parser.add_argument("--timeout", type=float, default=30, help="Délai réseau maximal par fichier, en secondes.")
+    parser.add_argument("--json", action="store_true", help="Produire le rapport en JSON.")
+    args = parser.parse_args(argv)
+    try:
+        if args.timeout <= 0 or not args.timeout < float("inf"):
+            raise ValueError("Le délai doit être fini et supérieur à zéro.")
+        if args.registry.suffix not in (".yaml", ".yml"):
+            raise ValueError("--registry doit désigner un fichier YAML.")
+        contents = {}
+        for filename in TABLE_FILES:
+            if args.upstream_dir:
+                contents[filename] = (args.upstream_dir / filename).read_text(encoding="utf-8")
+            else:
+                request = Request(TABLE_BASE + filename, headers={"User-Agent": "cmr-registry/1", "Accept": "text/plain"})
+                with urlopen(request, timeout=args.timeout) as response:
+                    data = response.read(5_000_001)
+                if len(data) > 5_000_000:
+                    raise ValueError(f"Table officielle anormalement volumineuse : {filename}.")
+                contents[filename] = data.decode("utf-8")
+        tables = load_tables(contents)
+        previous = load_registry(args.registry) if args.registry.exists() else None
+        cli_payload = json.loads(args.from_cli_models.read_text(encoding="utf-8")) if args.from_cli_models else None
+        now = datetime.now(timezone.utc)
+        registry, report = build_registry(tables, previous, now.date().isoformat(), cli_payload,
+                                           mode="local" if args.upstream_dir else "network")
+        registry["sync"] = {
+            "checked_at": now.isoformat(),
+            "mode": "local" if args.upstream_dir else "network",
+            "files": {name: {"url": TABLE_BASE + name, "sha256": hashlib.sha256(text.encode()).hexdigest()}
+                      for name, text in contents.items()},
+        }
+        import yaml
+        yaml_text = "# Registre généré; réglages manuels : voir docs/selection-policy.md.\n" + yaml.safe_dump(
+            registry, allow_unicode=True, sort_keys=False, width=110)
+        json_registry = {**registry, "_yaml_sha256": hashlib.sha256(yaml_text.encode()).hexdigest()}
+        json_text = dump_json(json_registry)
+        # Tous les téléchargements et rapprochements sont validés avant la première écriture.
+        write_atomic(args.registry, yaml_text)
+        write_atomic(args.registry.with_suffix(".json"), json_text)
+        if not args.upstream_dir:
+            for filename, content in contents.items():
+                write_atomic(args.snapshot_dir / filename, content)
+        report.update(models=len(registry["models"]), mode=registry["sync"]["mode"], checked_at=now.isoformat())
+        if args.json:
+            print(dump_json(report), end="")
+        else:
+            print(f"Registre synchronisé : {len(registry['models'])} modèles; source {report['mode']}.")
+            for key, label in (("new", "Nouveaux"), ("removed", "Retirés du CLI"),
+                               ("excluded_non_cli", "Exclus, sans support CLI documenté"),
+                               ("unmatched_cli", "ID importés sans tarif CLI associé"),
+                               ("ambiguous_cli", "Correspondances ambiguës")):
+                print(f"{label} : {', '.join(report[key]) or 'aucun'}.")
+            if report["id_changes"]:
+                print(f"Identifiants corrigés : {len(report['id_changes'])}.")
+        return 0
+    except (OSError, URLError, ValueError, KeyError, TypeError) as exc:
+        print(f"Synchronisation impossible : {exc}", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

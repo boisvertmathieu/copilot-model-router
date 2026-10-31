@@ -1,0 +1,1118 @@
+{
+  "schema_version": 1,
+  "updated_on": "2026-10-31",
+  "reference_task": {
+    "input_tokens": 200000,
+    "output_tokens": 20000,
+    "cached_input_ratio": 0.5,
+    "usd_per_credit": 0.01,
+    "pricing_tier": "Default",
+    "cache_write_tokens": 0,
+    "description": "Total sur plusieurs appels au tarif Default : 100 000 jetons d'entrée ordinaires, 100 000 déjà en cache, 20 000 de sortie; aucune création de cache."
+  },
+  "role_defaults": {
+    "dev": "premium",
+    "test": "standard",
+    "doc": "economy",
+    "e2e-validator": "premium",
+    "reviewer": "premium",
+    "planner": "frontier"
+  },
+  "budget_profiles": {
+    "economy": {
+      "level": "economy",
+      "max_cost": 5,
+      "description": "Petites tâches, plafond de 5 crédits."
+    },
+    "standard": {
+      "level": "standard",
+      "max_cost": 35,
+      "description": "Travail courant, plafond de 35 crédits."
+    },
+    "premium": {
+      "level": "premium",
+      "max_cost": 100,
+      "description": "Développement soutenu, plafond de 100 crédits."
+    },
+    "frontier": {
+      "level": "frontier",
+      "max_cost": 250,
+      "description": "Tâches exigeantes, plafond de 250 crédits."
+    }
+  },
+  "policy": {
+    "frontier_min_cost_index": 100,
+    "description": "Lightweight → economy; Versatile → standard; Powerful → premium, ou frontier dès 100 crédits."
+  },
+  "models": [
+    {
+      "id": "claude-fable-5",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Fable 5",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "frontier",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 10.0,
+        "output": 50.0,
+        "cached_input": 1.0,
+        "cache_write": 12.5
+      },
+      "cost_index": 210.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code",
+        "redaction"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "claude-fable-5.1",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Fable 5.1",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "frontier",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 10.0,
+        "output": 50.0,
+        "cached_input": 0.25,
+        "cache_write": 12.5
+      },
+      "cost_index": 202.5,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code",
+        "redaction"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "claude-haiku-4.5",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Haiku 4.5",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "standard",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 1.0,
+        "output": 5.0,
+        "cached_input": 0.1,
+        "cache_write": 1.25
+      },
+      "cost_index": 21.0,
+      "legacy_multiplier": 0.33,
+      "capabilities": [
+        "code",
+        "taches_simples"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "claude-haiku-5.5",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Haiku 5.5",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Lightweight",
+      "tier": "economy",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 100K",
+        "input": 0.1,
+        "output": 0.5,
+        "cached_input": 0.01,
+        "cache_write": 0.125
+      },
+      "cost_index": 2.1,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "code",
+        "taches_simples"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "claude-opus-4.8",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Opus 4.8",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "frontier",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 5.0,
+        "output": 25.0,
+        "cached_input": 0.5,
+        "cache_write": 6.25
+      },
+      "cost_index": 105.0,
+      "legacy_multiplier": 27.0,
+      "capabilities": [
+        "code",
+        "raisonnement"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "claude-opus-4.8-fast",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Opus 4.8 (fast mode) (preview)",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": true,
+      "github_category": "Powerful",
+      "tier": "frontier",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 10.0,
+        "output": 50.0,
+        "cached_input": 1.0,
+        "cache_write": 12.5
+      },
+      "cost_index": 210.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "code",
+        "raisonnement"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "claude-opus-5",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Opus 5",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "frontier",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 5.0,
+        "output": 25.0,
+        "cached_input": 0.5,
+        "cache_write": 6.25
+      },
+      "cost_index": 105.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "code",
+        "raisonnement"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "claude-opus-5.5",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Opus 5.5",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "premium",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 4.0,
+        "output": 20.0,
+        "cached_input": 0.2,
+        "cache_write": 5.0
+      },
+      "cost_index": 82.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code",
+        "redaction"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "claude-sonnet-4.6",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Sonnet 4.6",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "standard",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 3.0,
+        "output": 15.0,
+        "cached_input": 0.3,
+        "cache_write": 3.75
+      },
+      "cost_index": 63.0,
+      "legacy_multiplier": 9.0,
+      "capabilities": [
+        "agentique",
+        "code"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "claude-sonnet-5",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Sonnet 5",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "standard",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 2.0,
+        "output": 10.0,
+        "cached_input": 0.2,
+        "cache_write": 2.5
+      },
+      "cost_index": 42.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "claude-sonnet-5.5",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Claude Sonnet 5.5",
+      "family": "anthropic",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "standard",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 2.0,
+        "output": 10.0,
+        "cached_input": 0.1,
+        "cache_write": 2.5
+      },
+      "cost_index": 41.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "gemini-3.8-flash",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Gemini 3.8 Flash",
+      "family": "google",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "standard",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 0.75,
+        "output": 3.75,
+        "cached_input": 0.075,
+        "cache_write": null
+      },
+      "cost_index": 15.75,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "code",
+        "taches_simples"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "gemini-4-argon",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Gemini 4 Argon",
+      "family": "google",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "premium",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 2.0,
+        "output": 10.0,
+        "cached_input": 0.1,
+        "cache_write": null
+      },
+      "cost_index": 41.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code",
+        "raisonnement"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "mai-code-1.1-flash",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "MAI-Code-1.1-Flash",
+      "family": "microsoft",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Lightweight",
+      "tier": "economy",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 0.2,
+        "output": 1.2,
+        "cached_input": 0.02,
+        "cache_write": null
+      },
+      "cost_index": 4.6,
+      "legacy_multiplier": 0.25,
+      "capabilities": [
+        "code",
+        "redaction"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "kimi-k3",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Kimi K3",
+      "family": "moonshot_ai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "premium",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 3.0,
+        "output": 15.0,
+        "cached_input": 0.3,
+        "cache_write": null
+      },
+      "cost_index": 63.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code",
+        "contexte_long"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "gpt-5.3-codex",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "GPT-5.3-Codex",
+      "family": "openai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "premium",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "Not applicable",
+        "input": 1.75,
+        "output": 14.0,
+        "cached_input": 0.175,
+        "cache_write": null
+      },
+      "cost_index": 47.25,
+      "legacy_multiplier": 6.0,
+      "capabilities": [
+        "agentique",
+        "code"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "gpt-5.6-luna",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "GPT-5.6 Luna",
+      "family": "openai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Lightweight",
+      "tier": "economy",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 200K",
+        "input": 0.2,
+        "output": 1.2,
+        "cached_input": 0.02,
+        "cache_write": 0.25
+      },
+      "cost_index": 4.6,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "code",
+        "taches_simples"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "gpt-5.6-sol",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "GPT-5.6 Sol",
+      "family": "openai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "premium",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 272K",
+        "input": 4.0,
+        "output": 20.0,
+        "cached_input": 0.4,
+        "cache_write": 5.0
+      },
+      "cost_index": 84.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "code",
+        "raisonnement"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "gpt-5.6-terra",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "GPT-5.6 Terra",
+      "family": "openai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "standard",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 272K",
+        "input": 2.0,
+        "output": 12.0,
+        "cached_input": 0.2,
+        "cache_write": 2.5
+      },
+      "cost_index": 46.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "gpt-6-astra",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "GPT-6 Astra",
+      "family": "openai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "frontier",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 272K",
+        "input": 10.0,
+        "output": 50.0,
+        "cached_input": 1.0,
+        "cache_write": 12.5
+      },
+      "cost_index": 210.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "gpt-6-luna",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "GPT-6 Luna",
+      "family": "openai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Lightweight",
+      "tier": "economy",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 272K",
+        "input": 0.1,
+        "output": 0.5,
+        "cached_input": 0.01,
+        "cache_write": 0.125
+      },
+      "cost_index": 2.1,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "code",
+        "taches_simples"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "gpt-6-sol",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "GPT-6 Sol",
+      "family": "openai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Powerful",
+      "tier": "premium",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 272K",
+        "input": 2.0,
+        "output": 10.0,
+        "cached_input": 0.2,
+        "cache_write": 2.5
+      },
+      "cost_index": 42.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "gpt-6.1-terra",
+      "id_verified": false,
+      "id_source": "SUPPOSÉ : slug dérivé du nom officiel; à confirmer avec models.list.",
+      "aliases": [],
+      "available": null,
+      "display_name": "GPT-6.1 Terra",
+      "family": "openai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "standard",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 272K",
+        "input": 1.0,
+        "output": 5.0,
+        "cached_input": 0.05,
+        "cache_write": 1.25
+      },
+      "cost_index": 20.5,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "grok-4.5",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Grok 4.5",
+      "family": "xai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "standard",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 200K",
+        "input": 2.0,
+        "output": 6.0,
+        "cached_input": 0.5,
+        "cache_write": null
+      },
+      "cost_index": 37.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "grok-4.6",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Grok 4.6",
+      "family": "xai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "standard",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 200K",
+        "input": 2.0,
+        "output": 6.0,
+        "cached_input": 0.5,
+        "cache_write": null
+      },
+      "cost_index": 37.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    },
+    {
+      "id": "grok-4.7",
+      "id_verified": true,
+      "id_source": "VÉRIFIÉ : catalogue intégré du CLI 1.0.105 (models.getBuiltInCatalog), docs/evidence/builtin-models.json; accès au compte non vérifié.",
+      "aliases": [],
+      "available": null,
+      "display_name": "Grok 4.7",
+      "family": "xai",
+      "cli": true,
+      "retired": false,
+      "release_status": "GA",
+      "preview": false,
+      "github_category": "Versatile",
+      "tier": "standard",
+      "pricing": {
+        "currency": "USD",
+        "per_tokens": 1000000,
+        "tier": "Default",
+        "threshold": "≤ 200K",
+        "input": 2.0,
+        "output": 6.0,
+        "cached_input": 0.5,
+        "cache_write": null
+      },
+      "cost_index": 37.0,
+      "legacy_multiplier": null,
+      "capabilities": [
+        "agentique",
+        "code",
+        "raisonnement"
+      ],
+      "capabilities_source": "Tags éditoriaux dérivés de model-comparison.yml, pas un test de capacités.",
+      "source": {
+        "date": "2026-10-31",
+        "mode": "network",
+        "pricing": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "clients": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "comparison": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "legacy": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml"
+      }
+    }
+  ],
+  "sync": {
+    "checked_at": "2026-10-31T00:31:25.001385+00:00",
+    "mode": "network",
+    "files": {
+      "models-and-pricing.yml": {
+        "url": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/models-and-pricing.yml",
+        "sha256": "1d96c7fcd7cf0f4057dc6f33b9f5fd4e49d9000799834e3f499cb6950d6426e9"
+      },
+      "model-supported-clients.yml": {
+        "url": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-supported-clients.yml",
+        "sha256": "61ff600556db76ab7695a128b7a40bec8392668edf32d7d46ae422d6cf44e707"
+      },
+      "model-comparison.yml": {
+        "url": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/model-comparison.yml",
+        "sha256": "6adcd5d298ac1f2190ca43e46b1b8f7d759de37fdbfdd60bbbb68dda0abff899"
+      },
+      "annual-subscriber-model-multipliers.yml": {
+        "url": "https://raw.githubusercontent.com/github/docs/main/data/tables/copilot/annual-subscriber-model-multipliers.yml",
+        "sha256": "e5d2f1cc39b8d39b033f5483deea843a1523aedc962222ee6a07e2871e1bbd6b"
+      }
+    }
+  },
+  "_yaml_sha256": "ea15f6b3f3196fdf79c11effdf59168226b019dce2bbc455ac97067cade4baed"
+}
