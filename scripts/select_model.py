@@ -48,7 +48,14 @@ def resolve_dev_family(models: list[dict], role: str,
 def select_model(registry: dict, *, role: str, level: str | None = None,
                  max_cost=None, budget_profile: str | None = None,
                  dev_family: str | None = None, dev_model: str | None = None,
-                 available: list[dict] | None = None, allow_preview=False) -> dict:
+                 available: list[dict] | None = None, allow_preview=False,
+                 preferred_level: str | None = None, min_level: str | None = None,
+                 max_level: str | None = None) -> dict:
+    """L'API permet au routeur de fournir sa préférence et ses bornes par rôle.
+
+    Les trois modes publics restent exclusifs. preferred_level remplace seulement
+    la préférence des défauts/profils; le plafond financier reste intact.
+    """
     if role not in ROLES:
         raise SelectionError(f"Rôle inconnu : {role}.")
     if sum(value is not None for value in (level, max_cost, budget_profile)) > 1:
@@ -61,8 +68,15 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
             raise SelectionError(f"Profil de budget inconnu ou invalide : {budget_profile}.")
         wanted = profile.get("level", wanted)
         cap = decimal_number(profile["max_cost"], "Le plafond du profil")
+    if preferred_level is not None:
+        wanted = preferred_level
     if wanted not in LEVELS:
         raise SelectionError(f"Niveau demandé invalide : {wanted}.")
+    rank = {name: i for i, name in enumerate(LEVELS)}
+    if any(bound is not None and bound not in LEVELS for bound in (min_level, max_level)):
+        raise SelectionError("Borne de niveau invalide.")
+    if min_level and max_level and rank[min_level] > rank[max_level]:
+        raise SelectionError("Le niveau minimal dépasse le niveau maximal.")
     models = copy.deepcopy(registry["models"])
     warnings = []
     # Un catalogue récent fourni à cette invocation remplace l'ancien constat disponible.
@@ -88,6 +102,8 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
     eligible = [model for model in models
                 if model.get("cli") is True and not model.get("retired")
                 and model.get("available") is not False
+                and (min_level is None or rank[model["tier"]] >= rank[min_level])
+                and (max_level is None or rank[model["tier"]] <= rank[max_level])
                 and entry_selectable(model.get("runtime", {}))
                 and (allow_preview or (model.get("release_status") == "GA"
                      and not model.get("preview") and not model.get("runtime", {}).get("preview")))]
@@ -105,7 +121,6 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
             raise SelectionError(
                 f"Aucun modèle admissible ne respecte le plafond de {cap} crédits par tâche de référence. "
                 "Le budget ne peut pas être dépassé.", 2)
-    rank = {name: i for i, name in enumerate(LEVELS)}
     within_level = [model for model in eligible if rank[model["tier"]] <= rank[wanted]]
     fallback = "none"
     if within_level:
@@ -130,6 +145,12 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
         reasons.append(f"Plafond respecté : {cap} crédits.")
     if family:
         reasons.append(f"Famille {chosen['family']} différente de celle du dev ({family}).")
+    if min_level or max_level:
+        reasons.append(f"Bornes du rôle respectées : {min_level or 'economy'} à {max_level or 'frontier'}.")
+    if chosen.get("tier_provisoire"):
+        notice = f"Niveau {chosen['tier']} provisoire, déduit de la catégorie et du prix : à valider."
+        reasons.append(notice)
+        warnings.append(notice)
     if chosen.get("available") is None:
         warnings.append("Disponibilité du compte non vérifiée; fournir --available après connexion au poste de travail.")
     if not chosen.get("id_verified"):
@@ -141,6 +162,7 @@ def select_model(registry: dict, *, role: str, level: str | None = None,
     return {
         "id": chosen["id"], "display_name": chosen["display_name"], "family": chosen["family"],
         "tier": chosen["tier"], "requested_level": wanted, "role": role,
+        "tier_provisoire": bool(chosen.get("tier_provisoire")),
         "cost_index": chosen["cost_index"], "max_cost": float(cap) if cap is not None else None,
         "budget_profile": budget_profile, "dev_family": family,
         "id_verified": chosen.get("id_verified", False), "available": chosen.get("available"),

@@ -94,7 +94,7 @@ def build_registry(tables: dict, previous: dict | None, date: str,
         if key in default_rows:
             raise ValueError(f"Plusieurs tarifs Default pour {row['model']}.")
         default_rows[key] = row
-    report = {"new": [], "removed": [], "excluded_non_cli": [], "unmatched_cli": [],
+    report = {"new": [], "removed": [], "provisional": [], "excluded_non_cli": [], "unmatched_cli": [],
               "ambiguous_cli": [], "id_changes": []}
     models = []
     current_keys = set()
@@ -109,6 +109,14 @@ def build_registry(tables: dict, previous: dict | None, date: str,
         prices["cache_write"] = money(row.get("cache_write"), optional=True)
         cost = reference_cost(prices)
         comparison = comparisons.get(key, {})
+        if model.get("tier_override"):
+            model["tier_provisoire"] = False
+            model.pop("tier_note", None)
+        elif model.get("tier") not in LEVELS:
+            model["tier_provisoire"] = True
+        if model.get("tier_provisoire"):
+            model["tier_note"] = "Niveau déduit de la catégorie et du prix; à valider."
+            report["provisional"].append(name)
         model.setdefault("id", probable_id(name))
         model.setdefault("id_verified", False)
         model.setdefault("id_source", "SUPPOSÉ : slug dérivé du nom officiel; à confirmer avec models.list.")
@@ -239,6 +247,7 @@ def main(argv=None) -> int:
         else:
             print(f"Registre synchronisé : {len(registry['models'])} modèles; source {report['mode']}.")
             for key, label in (("new", "Nouveaux"), ("removed", "Retirés du CLI"),
+                               ("provisional", "Niveaux provisoires, à valider"),
                                ("excluded_non_cli", "Exclus, sans support CLI documenté"),
                                ("unmatched_cli", "ID importés sans tarif CLI associé"),
                                ("ambiguous_cli", "Correspondances ambiguës")):
