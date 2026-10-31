@@ -10,7 +10,7 @@ python3 scripts/route.py --role e2e-validator --story "Valider la feature" \
   --dev-model claude-sonnet-5.5 --available copilot-models.local.json --pane 3 --json
 ```
 
-Les [preuves exécutées](router-proof.md) montrent les sorties et les codes réels. L'[exemple d'orchestrateur Bash](herdr-integration.md#orchestrateur-bash-avec-le-routeur) choisit chaque équipier avant de démarrer l'équipe.
+Les [preuves du correctif de tiering](tiering-proof.md) montrent les sorties avant/après et les codes réels; les [preuves initiales du routeur](router-proof.md) conservent le comportement historique. L'[exemple d'orchestrateur Bash](herdr-integration.md#orchestrateur-bash-avec-le-routeur) choisit chaque équipier avant de démarrer l'équipe.
 
 ## Étage 1 : classification sans inférence
 
@@ -18,7 +18,9 @@ Les [preuves exécutées](router-proof.md) montrent les sorties et les codes ré
 
 | Signal | Classe proposée |
 | --- | --- |
-| Mots `sécurité`, `security`, `auth`, `authentification`, `authentication`, `autorisation`, `authorization`, `paiement`, `payment`, `migration`, `concurrence`, `concurrency` | `critique` |
+| Risque de sécurité explicite : `faille`, `CVE`, `vulnérabilité`, `vulnerability`, `injection`, même sans domaine sensible ni ampleur | `critique` |
+| Domaine sensible + au moins **20 fichiers ou 1 000 lignes** modifiées | `critique` |
+| Domaine sensible + risque `production`, `rollback`, `fuite de données`, `perte de données`, `data leak`, `data leakage`, `data loss`, mot `bug` ou `--story-type bug` | `critique` |
 | Mots `refactor`, `refactoring`, `refactorisation`, `architecture`, `multi-modules` (ou avec espace) | `complexe` |
 | Au moins 10 fichiers **ou** 500 lignes ajoutées + supprimées | `complexe` |
 | De 3 à 9 fichiers **ou** de 100 à 499 lignes modifiées, sans signal plus exigeant | `standard` |
@@ -28,7 +30,9 @@ Les [preuves exécutées](router-proof.md) montrent les sorties et les codes ré
 | `--story-type doc` | `trivial` |
 | Aucun signal décisif, y compris `bug`/`feature` sans autre indice | `standard` |
 
-Les mots sont comparés sans distinction de casse ou d'accents, avec des limites de mots; certaines formes au pluriel sont acceptées. Une mention de risque compte même dans « aucune migration » : cette heuristique simple ne comprend pas la négation. Elle classe la portée apparente, sans mesurer la difficulté réelle.
+Les domaines sensibles sont `sécurité`, `security`, `auth`, `authentification`, `authentication`, `autorisation`, `authorization`, `paiement`, `payment`, `migration`, `concurrence` et `concurrency`. **Un mot de domaine seul ne rend plus la tâche critique.** « refactor paiement » reste complexe, y compris avec 14 fichiers et 830 lignes modifiées; « typo dans la doc auth » avec un fichier reste trivial. « migration en production » et « corriger une faille d'injection SQL dans l'auth » sont critiques. Sans domaine sensible, 20 fichiers proposent complexe, et le mot `production` seul propose standard. Le seuil critique de 20 fichiers/1 000 lignes exige une portée plus large que le seuil complexe de 10 fichiers/500 lignes.
+
+Les mots sont comparés sans distinction de casse ou d'accents, avec des limites de mots; certaines formes au pluriel sont acceptées, ainsi que les ID comme `CVE-2026-12345`. Une mention de risque compte même dans « aucune faille » : cette heuristique simple ne comprend pas la négation ni le contexte sémantique d'une injection. Elle classe la portée apparente, sans mesurer la difficulté réelle.
 
 `--files N` accepte un entier positif ou nul. Sans diff, le nombre de lignes reste inconnu; le nombre de fichiers peut à lui seul proposer une classe. `--diff-stats` accepte le résumé anglais de `git diff --stat`, au singulier ou au pluriel, en texte ou dans un fichier UTF-8. Les ajouts et les suppressions s'additionnent. En cas de comptes de fichiers différents, le maximum de `--files` et du diff est retenu et expliqué. Un résumé illisible est une erreur de configuration.
 
@@ -53,7 +57,7 @@ L'interface injectée est `classify(prompt: str) -> str`. Sans client injecté, 
 copilot --model ID_ECONOMY -p PROMPT
 ```
 
-Le processus a un délai maximal (`--timeout`, 30 secondes par défaut), sans shell. Après retrait des espaces extérieurs, la réponse doit être exactement `trivial`, `standard`, `complexe` ou `critique`, en minuscules. JSON, explication, ponctuation et plusieurs mots sont refusés. La classe LLM acceptée remplace celle de l'heuristique; `heuristic_level` conserve l'autre résultat pour inspection.
+Le processus a un délai maximal (`--timeout`, 30 secondes par défaut), sans shell. Le prompt rappelle les mêmes combinaisons de risque et les seuils critiques; un domaine sensible seul y est insuffisant. Après retrait des espaces extérieurs, la réponse doit être exactement `trivial`, `standard`, `complexe` ou `critique`, en minuscules. JSON, explication, ponctuation et plusieurs mots sont refusés. La classe LLM acceptée remplace celle de l'heuristique; `heuristic_level` conserve l'autre résultat pour inspection.
 
 Un CLI absent, un délai dépassé, une sortie non nulle, une réponse invalide ou l'absence de modèle economy entraîne un **repli heuristique**, signalé dans `reason` et `warnings`. Les contraintes du choix final sont ensuite appliquées normalement. Le budget de référence porte sur le modèle de l'équipier; il ne comptabilise pas l'inférence facultative de classification ni la facture réelle.
 
@@ -84,7 +88,7 @@ print(choix["level"], choix["model"])
 
 Le rôle `doc` plafonne la préférence **et les candidats** à `standard`. Pour `e2e-validator`, toute classe sauf `trivial` impose au moins `premium`, même en repli. Une validation triviale peut utiliser `economy`. `reviewer` suit le mapping ordinaire; comme e2e, il doit toujours changer de famille par rapport au dev. Les autres rôles suivent le mapping sans borne supplémentaire.
 
-Le routeur transmet ces préférences et bornes à l'API du sélecteur (`preferred_level`, `min_level`, `max_level`). Le sélecteur continue de gérer les statuts CLI/GA, les politiques, la disponibilité, les budgets, les familles et le tri. Sa CLI historique reste compatible : ses modes `--level`, `--max-cost` et `--budget-profile` restent exclusifs.
+Le routeur transmet ces préférences et bornes à l'API du sélecteur (`preferred_level`, `min_level`, `max_level`). Le niveau de capacité est calculé à la sync à partir des métadonnées GitHub et des générations, avec monotonie par lignée, selon la [politique et les poids](selection-policy.md#niveaux-et-préférences). Ce score ne représente pas des benchmarks. Le sélecteur continue de gérer les statuts CLI/GA, les politiques, la disponibilité, les budgets, les familles et le tri : meilleur niveau inférieur ou égal à la préférence, puis moins cher dans ce niveau. Le prix n'attribue jamais un niveau. Sa CLI historique reste compatible : ses modes `--level`, `--max-cost` et `--budget-profile` restent exclusifs.
 
 Pour le routeur, `--max-cost` et `--budget-profile` sont exclusifs. La classification donne toujours la préférence; un profil fournit son plafond `max_cost`, sans remplacer cette préférence par son champ `level`. Le repli du sélecteur peut abaisser le niveau retenu (`tier`) ou relâcher la préférence vers un niveau supérieur disponible, en respectant les bornes du rôle. **Le plafond de coût et la séparation des familles restent obligatoires.** Ainsi, un dev complexe sous 5 crédits peut retomber en economy; une validation e2e non triviale avec le même plafond échoue si aucun premium admissible ne respecte ce budget.
 
@@ -146,9 +150,9 @@ Une erreur de requête ne ferme pas le serveur. Après une synchronisation exter
 
 ## Nouveaux modèles et niveau provisoire
 
-À la synchronisation, un nouveau modèle sans niveau connu reçoit le niveau déduit de la catégorie et du prix : `Lightweight → economy`, `Versatile → standard`, `Powerful → premium` sous 100 crédits et `frontier` dès 100. Il reçoit `tier_provisoire: true` et `tier_note: "Niveau déduit de la catégorie et du prix; à valider."`. Le rapport de sync le liste sous `provisional`.
+À la synchronisation, tous les modèles passent dans le même score de capacité, sans prix. Un nouveau Powerful bon marché peut donc atteindre `frontier` et un Lightweight cher peut rester `economy`. Si le comparatif est absent ou la lignée inconnue, la base de catégorie seule donne un niveau prudent : `Lightweight → economy`, `Versatile → standard`, `Powerful → premium`. Le passage de monotonie peut le relever pour respecter une génération précédente. Le modèle reçoit alors `tier_provisoire: true` et `tier_note` précise les signaux manquants et « à valider »; le rapport le liste sous `provisional`.
 
-Le marqueur reste présent aux synchronisations suivantes. Le routeur accepte ce modèle, renvoie `tier_provisoire: true` et indique « à valider » dans `reason` et `warnings`. Après révision humaine, inscrire `tier_override: NIVEAU` dans le YAML, puis resynchroniser; cela enlève le marqueur et sa note. Les niveaux déjà connus restent compatibles. Un modèle sans prix officiel ou dont la catégorie est inconnue n'obtient pas de tarif inventé.
+Le routeur accepte ce modèle et annonce son niveau provisoire dans `reason` et `warnings`. À chaque sync, le marqueur disparaît si les signaux deviennent suffisants ou avec `tier_override: NIVEAU` sur le modèle. L'override prévaut sur le score, se conserve et s'applique après resynchronisation; un conflit avec la monotonie ou entre variantes de la même version arrête la sync avant toute écriture. Les poids, champs et règles d'override sont dans la [politique](selection-policy.md#synchronisation-et-champs-manuels). Un modèle sans prix officiel ou dont la catégorie est inconnue n'obtient pas de tarif inventé.
 
 ## Rafraîchissement automatique
 

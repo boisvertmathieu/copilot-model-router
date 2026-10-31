@@ -17,14 +17,41 @@ Une famille manquante, inconnue ou contradictoire pour les deux rôles indépend
 
 ## Niveaux et préférences
 
-| Catégorie officielle GitHub | Niveau local |
-| --- | --- |
-| `Lightweight` | `economy` |
-| `Versatile` | `standard` |
-| `Powerful`, coût de référence inférieur à 100 crédits | `premium` |
-| `Powerful`, coût de référence de 100 crédits ou plus | `frontier` |
+Le niveau vient d'un **score de capacité fondé sur les métadonnées GitHub synchronisées, pas sur des benchmarks**. Le prix, le `cost_index` et les multiplicateurs annuels n'entrent jamais dans ce score. Une baisse de prix seule ne change donc aucun niveau. Le prix sert au filtre de budget, puis au départage dans le niveau retenu.
 
-Cette règle classe les catégories et les coûts; elle ne mesure pas la qualité d'un modèle. Un modèle standard peut coûter plus cher qu'un modèle premium. Un changement de prix peut déplacer un modèle Powerful autour du seuil de 100 crédits. Une catégorie inconnue arrête la sync pour faire réviser la politique.
+`capability_score()` et `assign_model_tiers()` dans `registry_lib.py` servent à tous les modèles à chaque sync, y compris aux nouveaux. Les poids sont définis dans `CAPABILITY_POLICY` et copiés sous `policy` dans le registre pour rendre la décision vérifiable; modifier cette copie ne configure pas le calcul. Le registre conserve les textes sous `github_comparison`, les indices de contexte sous `github_context`, le score et ses composantes sous `capability`, puis l'origine du niveau final sous `tier_source`.
+
+| Signal GitHub | Points |
+| --- | ---: |
+| Catégorie `Lightweight` / `Versatile` / `Powerful` | Base de 10 / 35 / 65 |
+| `deep reasoning` ou `sophisticated reasoning` dans `task_area` ou `excels_at` | +18 |
+| Sinon, `complex` dans ces mêmes textes | +10 |
+| `long-horizon` ou `long-running`, avec trait d'union ou espace | +12 |
+| `multistep`, `multi-step`, vérification, `validation`, `confirmation` ou `tests edge cases` en anglais | +6 |
+| `fast`, `faster`, `quick`, `simple`, `repetitive` ou `lightweight` dans ces textes | −8 |
+| Fenêtre explicite ou limite du tarif Default d'au moins 200 000 jetons | +2 |
+| Présence d'un palier `Long context` | +2 |
+| Statut officiel `GA` / autre statut | +2 / −2 |
+| Chaque génération suivante présente dans la même lignée | +4, maximum +12 |
+
+Chaque ligne de bonus/malus est appliquée une seule fois, même si le mot se répète dans les deux textes. Les indices « raisonnement profond » et « complexité » sont exclusifs. Les autres composantes s'additionnent; le total est borné à zéro. Les poids sont des hypothèses locales : les textes éditoriaux indiquent une orientation, la génération présume une progression, le contexte apporte un petit indice et GA un indice de maturité. Ils ne prouvent aucune supériorité mesurée.
+
+Les champs de fenêtre reconnus sont `context_window`, `context_window_tokens` et `max_context_tokens` lorsqu'ils sont présents dans les tables, avec nombre de jetons ou suffixe K/M. Les tables livrées fournissent surtout des **seuils tarifaires** (`≤ 272K`, par exemple) et des paliers long contexte. Ces seuils sont conservés comme tels; ils ne sont pas présentés comme la fenêtre maximale du modèle. Aucune valeur de prix n'est lue pour cette composante.
+
+| Score brut | Niveau calculé |
+| --- | --- |
+| 0 à 29 | `economy` |
+| 30 à 59 | `standard` |
+| 60 à 84 | `premium` |
+| 85 ou plus | `frontier` |
+
+La lignée combine le fournisseur `family` et la gamme extraite du nom officiel : Claude Opus, Sonnet, Haiku et Fable sont distincts; GPT Sol, Terra, Luna, Astra et Codex aussi. Les formats Gemini, Grok, MAI-Code et Kimi K sont reconnus. Les versions sont comparées comme des suites d'entiers : `4.8 < 5 < 5.5 < 5.10`, `5.0 = 5`, et `GPT-5.6 Sol < GPT-6 Sol`. Les mentions `fast`, `fast mode` et `preview` du nom ne créent aucune nouvelle génération. Le bonus compte les versions distinctes présentes, de la plus ancienne à la plus récente, avec les archives; il ne compare pas les numéros de gammes différentes.
+
+**Après le scoring, un passage de monotonie impose le même niveau aux variantes d'une même version et un niveau jamais inférieur pour une version plus récente de la même lignée.** Le plancher est le meilleur niveau final des générations précédentes. Le score brut et `capability.tier_scored` restent visibles; `tier_source: monotonicity` explique une hausse. Le prix plus bas d'une nouvelle génération ne peut jamais causer une rétrogradation.
+
+Exemples du registre livré : Opus 4.8 obtient `65 + 18 + 2 = 85`; Opus 5.5 obtient `65 + 12 + 6 + 2 + 8 = 93`. Les deux sont `frontier` sans override; entre eux, le sélecteur préfère Opus 5.5 à **82 crédits** plutôt qu'Opus 4.8 à **105 crédits**. GPT-6 Sol a un score brut de 81, puis monte à `frontier` par monotonie avec GPT-5.6 Sol. La [preuve complète](tiering-proof.md) montre les 26 modèles avant/après.
+
+Si le comparatif est absent **ou** la lignée ne peut pas être extraite, le score utilise seulement la base de catégorie : `economy`, `standard` ou `premium`. Le modèle porte `tier_provisoire: true` et une note « à valider ». La monotonie peut encore relever ce niveau prudent lorsqu'une génération antérieure reconnue impose un plancher. Un prix élevé ne fournit jamais le signal manquant. Une catégorie inconnue arrête la sync pour faire réviser la politique.
 
 | Rôle | Préférence par défaut |
 | --- | --- |
@@ -42,7 +69,7 @@ Cette règle classe les catégories et les coûts; elle ne mesure pas la qualit�
 | `premium` | `premium` | 100 |
 | `frontier` | `frontier` | 250 |
 
-Les profils, les préférences et le seuil sont des choix de ce dépôt, pas des offres GitHub. Un profil peut être ajouté sous `budget_profiles`, par exemple `petite-mission: {level: standard, max_cost: 25}`. Sans plafond explicite, la sélection n'impose pas de budget financier.
+Les profils, les préférences et les seuils de score sont des choix de ce dépôt, pas des offres GitHub. Un profil peut être ajouté sous `budget_profiles`, par exemple `petite-mission: {level: standard, max_cost: 25}`. Sans plafond explicite, la sélection n'impose pas de budget financier.
 
 ## Formule et portée du budget
 
@@ -77,11 +104,13 @@ La livraison garde `available: null` partout. Les 25 ID marqués vérifiés le s
 
 La sync télécharge les quatre tables officielles avant toute écriture. Elle ne retient qu'un tarif `Default` par modèle; une entrée sans champ `tier` est traitée comme le tarif unique Default. Elle retire les notes Markdown pour croiser les noms, puis garde seulement `cli: true`. Au premier passage, elle signale 26 nouveaux modèles et trois exclusions; aux passages suivants, elle signale seulement les nouveaux changements.
 
-Les modèles retirés des tarifs ou du support CLI restent archivés avec `retired: true`, `cli: false`, `available: false` et une date de retrait. Leur ancien prix reste visible pour l'historique et ne participe jamais à la sélection.
+Les modèles retirés des tarifs ou du support CLI restent archivés avec `retired: true`, `cli: false`, `available: false` et une date de retrait. Leur ancien prix reste visible pour l'historique et ne participe jamais à la sélection. Leurs métadonnées de capacité conservées participent encore au plancher de leur lignée, sans les rendre admissibles.
 
 Les champs suivants sont conservés : `id`, `id_verified`, `id_source`, `aliases`, `notes`, les autres champs personnels, `tier_override`, `manual_capabilities`, `role_defaults` et `budget_profiles`. Utiliser **`tier_override`** pour personnaliser un niveau et **`manual_capabilities`** pour ajouter des tags. Les champs dérivés `tier` et `capabilities` sont recalculés à chaque sync. Les tarifs, le fournisseur officiel, le statut et le support CLI appartiennent aux sources et sont actualisés.
 
-Un nouveau modèle sans niveau connu reçoit aussi `tier_provisoire: true` et `tier_note` contenant « à valider ». Ce marqueur reste jusqu'à la confirmation explicite par `tier_override`; les choix l'acceptent en l'annonçant dans `reason` et `warnings`. Les modèles déjà classés restent compatibles. Voir le [guide du routeur](router.md#nouveaux-modèles-et-niveau-provisoire).
+`tier_override` accepte `economy`, `standard`, `premium` ou `frontier` et prévaut sur le score automatique après resynchronisation. Par exemple, ajouter `tier_override: premium` à une entrée dans `models.yaml`, puis exécuter `python3 scripts/sync_registry.py --upstream-dir upstream`. Ne pas modifier seulement `tier`, qui sera recalculé. Un override s'applique aussi aux variantes de cette même version pour conserver leur capacité commune. Deux overrides incompatibles sur ces variantes, ou un override plus bas que le plancher d'une génération antérieure, font échouer la sync **avant toute écriture** avec une erreur de monotonie. Ajuster les overrides de la lignée de façon cohérente; le calcul n'écrase jamais silencieusement un override.
+
+Le caractère provisoire dépend des signaux, pas de l'âge de l'entrée. Il est recalculé à chaque sync : il reste si les données manquent, puis disparaît lorsqu'un comparatif et une lignée reconnus deviennent disponibles, ou avec un override explicite sur le modèle. Un ancien `tier` seul ne confirme pas sa capacité. Les choix acceptent un niveau provisoire en l'annonçant dans `reason` et `warnings`; voir le [guide du routeur](router.md#nouveaux-modèles-et-niveau-provisoire).
 
 `capabilities` contient des tags de tâches en français dérivés de `model-comparison.yml`; ce ne sont pas des limites ou des fonctions testées. La structure technique importée du CLI est conservée séparément sous `runtime`, y compris ses données de facturation. Elle ne remplace jamais les tarifs officiels du calcul.
 

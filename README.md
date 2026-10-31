@@ -33,7 +33,11 @@ python3 scripts/route.py --serve
 
 Sans `--available`, une disponibilité inconnue reste admissible et la sortie le signale. Ça permet de planifier hors ligne; l'orchestrateur doit fournir le catalogue réel avant de lancer les équipiers.
 
-Le [guide du routeur](docs/router.md) explique les seuils, les règles par rôle, le JSON et le protocole stdio. Le mapping est `trivial → economy`, `standard → standard`, `complexe → premium`, `critique → frontier`; doc est plafonné à standard et e2e exige au moins premium sauf pour une tâche triviale. `--max-cost` et `--budget-profile` sont exclusifs; le profil fournit son plafond tout en gardant la préférence issue de la classe. Un nouveau niveau déduit à la sync porte `tier_provisoire: true` et un avertissement « à valider ».
+Le [guide du routeur](docs/router.md) explique les seuils, les règles par rôle, le JSON et le protocole stdio. Le mapping est `trivial → economy`, `standard → standard`, `complexe → premium`, `critique → frontier`; doc est plafonné à standard et e2e exige au moins premium sauf pour une tâche triviale. `--max-cost` et `--budget-profile` sont exclusifs; le profil fournit son plafond tout en gardant la préférence issue de la classe.
+
+Le niveau des modèles vient d'un **score de métadonnées GitHub, pas de benchmarks** : catégorie, textes du comparatif, indices de contexte, statut et génération dans une lignée. Un passage de monotonie empêche une version plus récente d'avoir un niveau inférieur; une variante fast conserve le niveau de sa version. Le prix filtre le budget et départage les modèles du meilleur niveau admissible. Ainsi, Opus 5.5 reste `frontier` malgré son prix inférieur à celui d'Opus 4.8. La [politique de sélection](docs/selection-policy.md#niveaux-et-préférences) donne les poids et les seuils.
+
+Un comparatif absent ou une lignée inconnue donne un niveau prudent fondé sur la catégorie, sous réserve de monotonie, avec `tier_provisoire: true` et un avertissement « à valider ». `tier_override` dans `models.yaml` prévaut sur le score après resynchronisation; un conflit avec la monotonie fait échouer la sync avant écriture. Un domaine sensible seul ne rend plus la tâche critique : « refactor paiement » avec 14 fichiers et 830 lignes reste complexe. Critique exige une faille/CVE/vulnérabilité/injection explicite, ou un domaine sensible combiné à un risque réel ou à au moins 20 fichiers/1 000 lignes.
 
 Le sélecteur direct reste disponible : `python3 scripts/select_model.py --role dev --level premium`. Pour cette CLI historique, `--level`, `--max-cost` et `--budget-profile` restent exclusifs et les préférences par défaut restent propres au rôle.
 
@@ -97,7 +101,8 @@ L'estimation exclut la création de cache et les tarifs long contexte. Ce n'est 
 | `upstream/` | Les quatre tables GitHub téléchargées, utilisables pour une sync hors ligne. |
 | `scripts/select_model.py` | Filtrage, budget, indépendance des familles et commande Herdr. |
 | `scripts/route.py` | Classification, ajustement par rôle, sélection importée et serveur stdio. |
-| `scripts/sync_registry.py` | Prix, catégories, ajouts/retraits et rapprochement du catalogue réel. |
+| `scripts/registry_lib.py` | Score de capacité commun, lignées, monotonie et lecture du registre. |
+| `scripts/sync_registry.py` | Métadonnées GitHub, prix, niveaux de capacité, ajouts/retraits et catalogue réel. |
 | `scripts/refresh.sh`, `Makefile` | Rafraîchissement avec repli, tests et démos du routeur. |
 | `scripts/list_copilot_models.py` | Découverte locale par RPC, avec diagnostic de connexion. |
 | `docs/evidence/` | Versions, empreintes, catalogue intégré et expérience HTTP simulée. |
@@ -109,4 +114,4 @@ Pour rejouer la synchronisation sans réseau :
 python3 scripts/sync_registry.py --upstream-dir upstream
 ```
 
-La mission routeur est vérifiée avec **76 tests réussis**, dont les 47 tests d'origine. Les [preuves bout en bout](docs/router-proof.md) consignent les commandes, sorties et codes réels : classification, budgets/familles, serveur, faux client LLM et synchronisation provisoire. Le [rapport initial](docs/evidence/validation.json) conserve les preuves de la synchronisation réseau antérieure. Aucun lancement Herdr réel, commit ou push n'a été effectué. Les limites restantes comprennent l'accès réel aux modèles, la classification Copilot, l'ID `gpt-6.1-terra` et le routage HTTP du compte; voir le [rapport de recherche](docs/reverse-engineering.md).
+Le correctif de tiering est vérifié avec **94 tests réussis**, incluant les tests historiques adaptés. La [preuve du correctif](docs/tiering-proof.md) copie l'exécution avant, rejoue la même commande après, vérifie un vrai signal critique et les budgets, et compare les tiers des 26 modèles. Les [preuves initiales du routeur](docs/router-proof.md) consignent le comportement historique : budgets/familles, serveur, faux client LLM et synchronisation provisoire. Le [rapport initial](docs/evidence/validation.json) conserve les preuves de la synchronisation réseau antérieure; le correctif utilise les tables locales de `upstream/`. Aucun lancement Herdr réel, commit ou push n'a été effectué. Les limites restantes comprennent l'accès réel aux modèles, la classification Copilot, l'ID `gpt-6.1-terra` et le routage HTTP du compte; voir le [rapport de recherche](docs/reverse-engineering.md).
