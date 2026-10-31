@@ -386,7 +386,7 @@ class CopilotJudge:
         except OSError as exc:
             raise JudgeError(f"Exécution du juge impossible ({type(exc).__name__}).") from exc
         if result.returncode:
-            raise JudgeError(f"Copilot juge a quitté avec le code {result.returncode} : {failure_cause(result)}")
+            raise JudgeError(failure_cause(result, prefix=f"Copilot juge a quitté avec le code {result.returncode} : "))
         return parse_judgment(result.stdout)
 
 

@@ -34,7 +34,10 @@ def user_mcp_disable_args() -> list[str]:
     except (OSError, ValueError) as exc:
         print(f"Avertissement : mcp-config.json illisible ou invalide ({type(exc).__name__}); serveurs MCP utilisateur non désactivés.", file=sys.stderr)
         return []
-    servers = config.get("mcpServers") if isinstance(config, dict) else None
+    if not isinstance(config, dict) or ("mcpServers" in config and not isinstance(config["mcpServers"], dict)):
+        print("Avertissement : mcp-config.json invalide (objets JSON attendus); serveurs MCP utilisateur non désactivés.", file=sys.stderr)
+        return []
+    servers = config.get("mcpServers")
     # https://docs.github.com/en/copilot/reference/cli-command-reference
     # --disable-mcp-server=SERVER-NAME est répétable; aucun « disable all » documenté.
     return [f"--disable-mcp-server={name}" for name in servers] if isinstance(servers, dict) else []
@@ -56,11 +59,15 @@ def run_copilot(model: str, prompt: str, *, cli: str = "copilot", timeout: float
         return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
-def failure_cause(result, limit: int = 300) -> str:
+def truncate_message(message: str, limit: int = 300) -> str:
+    return message if len(message) <= limit else message[:max(0, limit - 1)] + "…"
+
+
+def failure_cause(result, limit: int = 300, *, prefix: str = "") -> str:
     """Première ligne utile renvoyée par le CLI (stderr puis stdout), tronquée."""
     for text in (result.stderr, result.stdout):
         lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
         if lines:
             cause = " ".join(lines[:2])
-            return cause[:limit] + ("…" if len(cause) > limit else "")
-    return "aucun message"
+            return truncate_message(prefix + cause, limit)
+    return truncate_message(prefix + "aucun message", limit)

@@ -1,5 +1,7 @@
 """Régressions QA et décisions produit, sans compte Copilot ni réseau."""
 
+import contextlib
+import io
 import json
 import os
 import shlex
@@ -489,3 +491,44 @@ class OrgMcpDisabledRegressionTests(unittest.TestCase):
                 (Path(folder) / "mcp-config.json").write_text("{invalide")
                 self.assertEqual(user_mcp_disable_args(), [])
                 self.assertIn("mcp-config.json", "".join(c.args[0] for c in err.write.call_args_list))
+
+    def test_n14_malformed_mcp_config_shapes_warn(self):
+        from copilot_cli import user_mcp_disable_args
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {"COPILOT_HOME": folder}):
+            config = Path(folder) / "mcp-config.json"
+            for payload in ([], [1], None, {"mcpServers": [1]}, {"mcpServers": []}, {"mcpServers": None}):
+                with self.subTest(payload=payload), contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    config.write_text(json.dumps(payload), encoding="utf-8")
+                    self.assertEqual(user_mcp_disable_args(), [])
+                    self.assertIn("mcp-config.json invalide", stderr.getvalue())
+            for payload in ({}, {"mcpServers": {}}):
+                with self.subTest(payload=payload), contextlib.redirect_stderr(io.StringIO()) as stderr:
+                    config.write_text(json.dumps(payload), encoding="utf-8")
+                    self.assertEqual(user_mcp_disable_args(), [])
+                    self.assertEqual(stderr.getvalue(), "")
+
+    def test_n15_long_cli_failures_keep_marker_and_prefix_within_limit(self):
+        from copilot_cli import failure_cause
+        completed = subprocess.CompletedProcess([], 9, "", "x" * 1000)
+        cause = failure_cause(completed)
+        self.assertEqual(len(cause), 300)
+        self.assertTrue(cause.endswith("…"))
+        for target, client, error_type, prefix in (
+            ("route.run_copilot", lambda: CopilotCliClient("classifier").classify("x"), ValueError, "Copilot CLI"),
+            ("eval.run_eval.run_copilot", lambda: CopilotJudge("judge").judge({}, {}), JudgeError, "Copilot juge"),
+        ):
+            with self.subTest(target=target), patch(target, return_value=completed):
+                with self.assertRaises(error_type) as caught:
+                    client()
+                message = str(caught.exception)
+                self.assertEqual(len(message), 300)
+                self.assertTrue(message.startswith(prefix))
+                self.assertTrue(message.endswith("…"))
+        for size in (299, 300, 301):
+            with self.subTest(size=size):
+                result = route({"models": [model("classifier", "openai", "economy", 1)]}, role="dev",
+                               classifier="llm", client=FakeClient(error=RuntimeError("x" * size)))
+                warning = result["warnings"][0]
+                cause = warning.split("(RuntimeError : ", 1)[1].split("); repli heuristique", 1)[0]
+                self.assertEqual(len(cause), min(size, 300))
+                self.assertEqual(cause.endswith("…"), size > 300)

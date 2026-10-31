@@ -21,3 +21,4 @@ stdout always contains one JSON object, including errors (`error`, `hint`, `exit
 | 5 | Unknown role. |
 
 [WSL2 installation and orchestrator instructions](docs/integration.md) · [Selection policy](docs/router.md) · [Evaluation and tests](eval/README.md)
+[Install and use the Herdr routing skill](docs/integration.md#skill).

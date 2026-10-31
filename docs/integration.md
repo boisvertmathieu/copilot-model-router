@@ -44,6 +44,52 @@ done
 This smoke check prints one decision per role and starts no agents. A simulated catalog does not
 establish account access. Replace it with the real snapshot before a launch.
 
+## Skill
+
+The `herdr-route` skill chooses a model and opens the requested Herdr agent/session in
+Autopilot without questions. It needs the same authenticated Copilot CLI, uv, and existing
+Herdr pane as the examples below. Set the checkout's absolute path in the shell that starts
+Copilot (and persist this export in your shell configuration):
+
+```bash
+export COPILOT_MODEL_ROUTER_HOME="/path/to/copilot-model-router"
+```
+
+Install the whole skill directory, including its tiny launch wrapper. Choose personal scope
+for all projects (`~/.copilot/skills/herdr-route/`):
+
+```bash
+mkdir -p "$HOME/.copilot/skills"
+cp -R "$COPILOT_MODEL_ROUTER_HOME/skills/herdr-route" "$HOME/.copilot/skills/herdr-route"
+```
+
+Or run these commands from the target project for project scope (`.github/skills/herdr-route/`):
+
+```bash
+mkdir -p .github/skills
+cp -R "$COPILOT_MODEL_ROUTER_HOME/skills/herdr-route" .github/skills/herdr-route
+```
+
+For a symlink install, replace the chosen `cp -R` command with `ln -s` using the same source
+and destination. Install into an absent destination; copies must be updated after skill changes.
+Copilot discovers both locations; see its [skill command reference](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference#managing-skills-non-interactively).
+
+Smoke test from the target project after installation (two commands). Confirm that the first
+lists `herdr-route`, then run the second with a real task and an existing pane:
+
+```bash
+copilot skill list
+copilot --autopilot --allow-all --no-ask-user -p 'Use /herdr-route to open one Herdr session for role dev, pane 1, name dev-filter, task: add a list filter. Use the live catalog and LLM classifier. Report the chosen model.'
+```
+
+Expect decision JSON followed by a Herdr launch with exactly its `herdr_command` model.
+A heuristic fallback prints a notice and still launches. Missing/invalid
+`COPILOT_MODEL_ROUTER_HOME` launches nothing. Nonzero router exits launch nothing and report
+the code, JSON `error`, and the skill's action for that code, following the exit meanings
+in the instructions below. Relative task/catalog file paths must be made absolute because
+the wrapper runs routing from the router checkout; Herdr launches from the calling project.
+`scripts/route.py` itself only prints JSON.
+
 ## Paste into the orchestrator instructions
 
 Add the following block to `~/.copilot/copilot-instructions.md`. Replace `ROUTER_DIR` with the
