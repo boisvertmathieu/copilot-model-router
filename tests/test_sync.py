@@ -95,6 +95,53 @@ class SyncTests(unittest.TestCase):
         _, second_report = self.build(updated, tables=tables)
         self.assertEqual(second_report["removed"], [])
 
+    def test_nouveau_modele_provisoire_persistant_et_validation_manuelle(self):
+        registry, _ = self.build()
+        tables = copy.deepcopy(self.tables)
+        pricing = copy.deepcopy(tables["models-and-pricing.yml"][0])
+        pricing.update(model="Modèle nouveau", provider="openai", category="Lightweight", release_status="GA")
+        tables["models-and-pricing.yml"].append(pricing)
+        tables["model-supported-clients.yml"].append({"name": "Modèle nouveau", "cli": True})
+        updated, report = self.build(registry, tables=tables)
+        new = next(model for model in updated["models"] if model["display_name"] == "Modèle nouveau")
+        self.assertEqual(new["tier"], "economy")
+        self.assertTrue(new["tier_provisoire"])
+        self.assertIn("à valider", new["tier_note"])
+        self.assertEqual(report["new"], ["Modèle nouveau"])
+        self.assertIn("Modèle nouveau", report["provisional"])
+        from route import route
+        choice = route(updated, role="doc", story="typo", available=[{"id": new["id"]}])
+        self.assertEqual(choice["model"], new["id"])
+        self.assertTrue(choice["tier_provisoire"])
+        self.assertIn("à valider", choice["reason"])
+        repeated, _ = self.build(updated, tables=tables)
+        new = next(model for model in repeated["models"] if model["display_name"] == "Modèle nouveau")
+        self.assertTrue(new["tier_provisoire"])
+        new["tier_override"] = "standard"
+        validated, report = self.build(repeated, tables=tables)
+        new = next(model for model in validated["models"] if model["display_name"] == "Modèle nouveau")
+        self.assertFalse(new["tier_provisoire"])
+        self.assertEqual(new["tier"], "standard")
+        self.assertNotIn("tier_note", new)
+        self.assertNotIn("Modèle nouveau", report["provisional"])
+
+    def test_niveau_connu_non_marque_provisoire(self):
+        registry, _ = self.build()
+        for model in registry["models"]:
+            model.pop("tier_provisoire", None)
+        updated, report = self.build(registry)
+        self.assertFalse(any(model.get("tier_provisoire") for model in updated["models"]))
+        self.assertEqual(report["provisional"], [])
+
+    def test_tiers_provisoires_deduits_des_categories_et_prix(self):
+        registry, _ = self.build()
+        models = {model["id"]: model for model in registry["models"]}
+        for identifier, tier in (("claude-haiku-5.5", "economy"), ("claude-sonnet-5.5", "standard"),
+                                 ("gemini-4-argon", "premium"), ("claude-opus-5", "frontier")):
+            with self.subTest(identifier=identifier):
+                self.assertEqual(models[identifier]["tier"], tier)
+                self.assertTrue(models[identifier]["tier_provisoire"])
+
     def test_import_cli_reel_politique_et_id_corrige(self):
         payload = {"source": "models.list", "models": [
             {"id": "id-cli-corrige", "name": "Kimi K3", "policy": {"state": "enabled"}},
