@@ -450,3 +450,42 @@ class ProductDecisionRegressionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class OrgMcpDisabledRegressionTests(unittest.TestCase):
+    def fake_cli(self, folder: Path) -> Path:
+        cli = folder / "copilot"
+        cli.write_text("#!/bin/sh\necho 'error: unknown option --disable-mcp-server' >&2\nexit 1\n")
+        cli.chmod(0o755)
+        return cli
+
+    def test_c7_cli_rejection_falls_back_with_real_cause(self):
+        with tempfile.TemporaryDirectory() as folder:
+            cli = self.fake_cli(Path(folder))
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/route.py"), "--classifier", "llm",
+                 "--copilot-cli", str(cli), "--role", "test", "--story", "x",
+                 "--available", "grok-4.5,grok-4.7", "--json"],
+                capture_output=True, text=True, env={**os.environ, "COPILOT_HOME": folder})
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout)["decision_source"], "heuristic")
+            self.assertIn("unknown option --disable-mcp-server", result.stderr)
+
+    def test_c7_judge_reports_real_cause(self):
+        with tempfile.TemporaryDirectory() as folder:
+            cli = self.fake_cli(Path(folder))
+            with patch.dict(os.environ, {"COPILOT_HOME": folder}):
+                judge = CopilotJudge("claude-haiku-5.5", cli=str(cli), timeout=10)
+                with self.assertRaises(JudgeError) as caught:
+                    judge.judge({"id": "x"}, {"model": "x"})
+            self.assertIn("unknown option --disable-mcp-server", str(caught.exception))
+
+    def test_n11_invalid_mcp_config_warns_missing_is_silent(self):
+        from copilot_cli import user_mcp_disable_args
+        with tempfile.TemporaryDirectory() as folder:
+            with patch.dict(os.environ, {"COPILOT_HOME": folder}), patch("sys.stderr") as err:
+                self.assertEqual(user_mcp_disable_args(), [])
+                self.assertFalse(err.write.called)
+                (Path(folder) / "mcp-config.json").write_text("{invalide")
+                self.assertEqual(user_mcp_disable_args(), [])
+                self.assertIn("mcp-config.json", "".join(c.args[0] for c in err.write.call_args_list))

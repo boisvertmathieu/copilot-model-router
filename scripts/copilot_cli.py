@@ -6,6 +6,7 @@ import json
 import os
 import signal
 import subprocess
+import sys
 from pathlib import Path
 
 # https://docs.github.com/en/copilot/reference/cli-command-reference
@@ -28,7 +29,10 @@ def user_mcp_disable_args() -> list[str]:
     home = Path(os.environ.get("COPILOT_HOME") or Path.home() / ".copilot")
     try:
         config = json.loads((home / "mcp-config.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except FileNotFoundError:
+        return []
+    except (OSError, ValueError) as exc:
+        print(f"Avertissement : mcp-config.json illisible ou invalide ({type(exc).__name__}); serveurs MCP utilisateur non désactivés.", file=sys.stderr)
         return []
     servers = config.get("mcpServers") if isinstance(config, dict) else None
     # https://docs.github.com/en/copilot/reference/cli-command-reference
@@ -50,3 +54,13 @@ def run_copilot(model: str, prompt: str, *, cli: str = "copilot", timeout: float
             process.communicate()
             raise
         return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
+def failure_cause(result, limit: int = 300) -> str:
+    """Première ligne utile renvoyée par le CLI (stderr puis stdout), tronquée."""
+    for text in (result.stderr, result.stdout):
+        lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
+        if lines:
+            cause = " ".join(lines[:2])
+            return cause[:limit] + ("…" if len(cause) > limit else "")
+    return "aucun message"

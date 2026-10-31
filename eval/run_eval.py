@@ -21,7 +21,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from copilot_cli import run_copilot  # noqa: E402
+from copilot_cli import failure_cause, run_copilot  # noqa: E402
 from registry_lib import (  # noqa: E402
     LEVELS, ROLES, TABLE_FILES, catalog_entries, decimal_number, dump_json,
     entry_selectable, load_registry, matching_entries, model_lineage,
@@ -386,7 +386,7 @@ class CopilotJudge:
         except OSError as exc:
             raise JudgeError(f"Exécution du juge impossible ({type(exc).__name__}).") from exc
         if result.returncode:
-            raise JudgeError(f"Copilot juge a quitté avec le code {result.returncode}.")
+            raise JudgeError(f"Copilot juge a quitté avec le code {result.returncode} : {failure_cause(result)}")
         return parse_judgment(result.stdout)
 
 

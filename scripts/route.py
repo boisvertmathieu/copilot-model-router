@@ -13,7 +13,7 @@ import unicodedata
 from pathlib import Path
 from typing import Protocol
 
-from copilot_cli import run_copilot
+from copilot_cli import failure_cause, run_copilot
 from registry_lib import ROOT, LEVELS, ROLES, catalog_entries, dump_json, load_registry, read_available
 from select_model import (
     JsonArgumentParser, SelectionError, best_model, catalog_models, error_payload, model_available, select_model,
@@ -96,7 +96,7 @@ class CopilotCliClient:
         result = run_copilot(self.model, prompt, cli=self.cli, timeout=self.timeout)
         if result.returncode:
             # Ne pas inclure le prompt ni les journaux potentiellement sensibles.
-            raise ValueError(f"Copilot CLI a quitté avec le code {result.returncode}.")
+            raise ValueError(f"Copilot CLI a quitté avec le code {result.returncode} : {failure_cause(result)}")
         return result.stdout
 
 
@@ -355,7 +355,9 @@ def route(registry: dict, *, role: str, story: str | None = None,
             reasons = [f"Classifieur LLM → {level} : {classification['reason']}"]
         except Exception as exc:
             # Toute défaillance du client injecté redonne la main à la voie sans inférence.
-            notice = f"Classifieur LLM indisponible ({type(exc).__name__}); repli heuristique → {level}."
+            cause = " ".join(str(exc).split())[:300]
+            notice = (f"Classifieur LLM indisponible ({type(exc).__name__}"
+                      + (f" : {cause}" if cause else "") + f"); repli heuristique → {level}.")
             warnings.append(notice)
             reasons.insert(0, notice)
     tier, minimum, maximum, role_reasons = role_tier(role, level)
